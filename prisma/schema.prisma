@@ -1,0 +1,127 @@
+// Prisma Schema for Basketball Stats App
+// MySQL version for Hostinger hosting
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// Enum pour les ligues
+enum League {
+  nba
+  local
+}
+
+// Enum pour les positions
+enum Position {
+  PG
+  SG
+  SF
+  PF
+  C
+}
+
+// Enum pour le statut des matchs
+enum MatchStatus {
+  scheduled
+  in_progress
+  completed
+}
+
+// Table des équipes
+model Team {
+  id          String   @id
+  name        String   @db.VarChar(100)
+  logoUrl     String?  @map("logo_url") @db.Text
+  league      League   @default(local)
+  nbaTeamId   Int?     @map("nba_team_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  players     Player[]
+  homeMatches Match[]  @relation("HomeTeam")
+  awayMatches Match[]  @relation("AwayTeam")
+
+  @@index([league])
+  @@map("teams")
+}
+
+// Table des joueurs
+model Player {
+  id           String    @id
+  firstName    String    @map("first_name") @db.VarChar(50)
+  lastName     String    @map("last_name") @db.VarChar(50)
+  jerseyNumber Int?      @map("jersey_number")
+  position     Position?
+  teamId       String?   @map("team_id")
+  photoUrl     String?   @map("photo_url") @db.Text
+  league       League    @default(local)
+  nbaPlayerId  Int?      @map("nba_player_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  stats        PlayerStats[]
+
+  @@index([teamId])
+  @@index([league])
+  @@map("players")
+}
+
+// Table des matchs
+model Match {
+  id          String      @id
+  homeTeamId  String      @map("home_team_id")
+  awayTeamId  String      @map("away_team_id")
+  matchDate   DateTime    @map("match_date")
+  status      MatchStatus @default(scheduled)
+  homeScore   Int         @default(0) @map("home_score")
+  awayScore   Int         @default(0) @map("away_score")
+  league      League      @default(local)
+  nbaGameId   Int?        @map("nba_game_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  homeTeam    Team          @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Cascade)
+  awayTeam    Team          @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Cascade)
+  playerStats PlayerStats[]
+
+  @@index([matchDate])
+  @@index([status])
+  @@index([league])
+  @@map("matches")
+}
+
+// Table des statistiques par match
+model PlayerStats {
+  id                    String   @id
+  playerId              String   @map("player_id")
+  matchId               String   @map("match_id")
+  points                Int      @default(0)
+  rebounds              Int      @default(0)
+  assists               Int      @default(0)
+  steals                Int      @default(0)
+  blocks                Int      @default(0)
+  turnovers             Int      @default(0)
+  minutesPlayed         Decimal  @default(0) @map("minutes_played") @db.Decimal(5, 2)
+  fieldGoalsMade        Int      @default(0) @map("field_goals_made")
+  fieldGoalsAttempted   Int      @default(0) @map("field_goals_attempted")
+  threePointersMade     Int      @default(0) @map("three_pointers_made")
+  threePointersAttempted Int     @default(0) @map("three_pointers_attempted")
+  freeThrowsMade        Int      @default(0) @map("free_throws_made")
+  freeThrowsAttempted   Int      @default(0) @map("free_throws_attempted")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, matchId])
+  @@index([playerId])
+  @@index([matchId])
+  @@map("player_stats")
+}

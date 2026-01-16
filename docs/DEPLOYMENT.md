@@ -105,26 +105,73 @@ pm2 start npm --name "basketball-stats" -- start
 pm2 save
 ```
 
-### Option B : Hebergement Web Hostinger (Statique)
+### Option B : Hebergement Web Hostinger (Premium/Business avec Node.js)
 
-L'hebergement web standard Hostinger ne supporte pas Node.js.
-Alternatives :
+Les plans Premium/Business supportent Node.js !
+
+#### Etape 1 : Preparer les fichiers
+
+```bash
+# Build local pour tester
+npm run build
+```
+
+#### Etape 2 : Configurer Node.js sur hPanel
+
+1. Connectez-vous a votre **hPanel Hostinger**
+2. Allez dans **Avance** > **Node.js**
+3. Cliquez sur **Creer une application**
+4. Configurez :
+   - **Version Node.js** : 20.x (ou 18.x)
+   - **Repertoire racine** : `/public_html` ou `/public_html/basketball`
+   - **Fichier de demarrage** : `server.js`
+   - **Mode** : Production
+
+#### Etape 3 : Variables d'environnement
+
+Dans la section Node.js, ajoutez les variables :
+
+| Variable | Valeur |
+|----------|--------|
+| `NODE_ENV` | `production` |
+| `DATABASE_HOST` | `localhost` |
+| `DATABASE_PORT` | `3306` |
+| `DATABASE_USER` | votre_user |
+| `DATABASE_PASSWORD` | votre_mdp |
+| `DATABASE_NAME` | votre_bdd |
+| `AUTH_SECRET` | votre_cle_32_chars |
+| `AUTH_URL` | `https://votre-domaine.com` |
+
+#### Etape 4 : Deployer via Git
+
+Dans hPanel > **Avance** > **Git** :
+
+1. Connectez votre repo GitHub
+2. Selectionnez la branche `main`
+3. Deployez
+
+Ou via FTP/File Manager :
+1. Uploadez tous les fichiers du projet
+2. Dans le terminal SSH ou via hPanel Node.js :
+   ```bash
+   npm install
+   npm run build
+   ```
+3. Redemarrez l'application Node.js
+
+#### Etape 5 : Initialiser la BDD
+
+Via SSH ou le terminal Node.js de hPanel :
+```bash
+npx prisma db push
+```
+
+### Option C : Vercel (Alternative gratuite)
+
+Si Hostinger pose probleme :
 - **Vercel** (gratuit) : https://vercel.com
 - **Railway** : https://railway.app
 - **Render** : https://render.com
-
-#### Deployer sur Vercel (recommande)
-
-1. Poussez sur GitHub
-2. Connectez Vercel a votre repo GitHub
-3. Configurez les variables d'environnement dans Vercel :
-   - `DATABASE_HOST`
-   - `DATABASE_PORT`
-   - `DATABASE_USER`
-   - `DATABASE_PASSWORD`
-   - `DATABASE_NAME`
-   - `AUTH_SECRET`
-   - `AUTH_URL` (votre domaine Vercel)
 
 ---
 

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { PageLayout } from '@/components/PageLayout';
 import { useTeams } from '@/hooks/useTeams';
-import { Users, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, UserCircle } from 'lucide-react';
 import type { Team } from '@/types';
 
 export default function TeamsPage() {
@@ -20,21 +21,15 @@ export default function TeamsPage() {
     setFormError('');
 
     if (!formData.name.trim()) {
-      setFormError('Le nom est requis');
+      setFormError("Le nom de l'équipe est requis");
       return;
     }
 
     let result;
     if (editingTeam) {
-      result = await updateTeam(editingTeam.id, {
-        name: formData.name,
-        logo_url: formData.logo_url || undefined,
-      });
+      result = await updateTeam(editingTeam.id, formData);
     } else {
-      result = await createTeam({
-        name: formData.name,
-        logo_url: formData.logo_url || undefined,
-      });
+      result = await createTeam(formData);
     }
 
     if (result) {
@@ -42,7 +37,7 @@ export default function TeamsPage() {
       setEditingTeam(null);
       setFormData({ name: '', logo_url: '' });
     } else {
-      setFormError('Erreur lors de la sauvegarde');
+      setFormError("Erreur lors de l'enregistrement");
     }
   };
 
@@ -66,135 +61,152 @@ export default function TeamsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link href="/" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              <Users className="h-6 w-6 text-orange-500" />
-              <h1 className="text-xl font-bold">Gestion des équipes</h1>
-            </div>
-            {!showForm && (
-              <Button onClick={() => setShowForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvelle équipe
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        {showForm && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>
-                {editingTeam ? 'Modifier l\'équipe' : 'Nouvelle équipe'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+    <PageLayout
+      title="Gestion des équipes"
+      subtitle={`${teams.length} équipes enregistrées`}
+      actions={
+        !showForm && (
+          <Button
+            onClick={() => setShowForm(true)}
+            className="bg-primary hover:bg-primary/90"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvelle équipe
+          </Button>
+        )
+      }
+    >
+      {/* Form */}
+      {showForm && (
+        <Card className="mb-6 border-0 bg-card">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-lg text-foreground">
+              {editingTeam ? 'Modifier l\'équipe' : 'Nouvelle équipe'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="mb-1 block text-sm font-medium text-foreground">
                     Nom de l&apos;équipe *
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md bg-background"
-                    placeholder="Ex: Paris Basket"
+                    placeholder="Ex: Lakers de Paris"
+                    className="w-full rounded-xl border border-border bg-secondary px-4 py-2.5 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">
-                    URL du logo (optionnel)
+                  <label className="mb-1 block text-sm font-medium text-foreground">
+                    URL du logo
                   </label>
                   <input
                     type="url"
                     value={formData.logo_url}
                     onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md bg-background"
                     placeholder="https://..."
+                    className="w-full rounded-xl border border-border bg-secondary px-4 py-2.5 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
-                {formError && (
-                  <p className="text-red-500 text-sm">{formError}</p>
-                )}
-                <div className="flex gap-2">
-                  <Button type="submit">
-                    {editingTeam ? 'Modifier' : 'Créer'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleCancel}>
-                    Annuler
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+              </div>
+              {formError && (
+                <p className="text-sm text-destructive">{formError}</p>
+              )}
+              <div className="flex gap-3">
+                <Button type="submit" className="bg-primary hover:bg-primary/90">
+                  {editingTeam ? 'Enregistrer' : 'Créer'}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleCancel}>
+                  Annuler
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
-        {loading ? (
-          <div className="text-center py-8 text-muted-foreground">
-            Chargement...
-          </div>
-        ) : error ? (
-          <div className="text-center py-8 text-red-500">{error}</div>
-        ) : teams.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            Aucune équipe locale. Créez votre première équipe !
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {teams.map((team) => (
-              <Card key={team.id}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+      {/* Teams Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      ) : error ? (
+        <div className="rounded-xl bg-destructive/10 p-6 text-center text-destructive">
+          Erreur: {error}
+        </div>
+      ) : teams.length === 0 ? (
+        <Card className="border-0 bg-card">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Users className="mb-4 h-16 w-16 text-muted-foreground" />
+            <p className="text-lg font-medium text-muted-foreground">Aucune équipe</p>
+            <p className="mb-4 text-sm text-muted-foreground">Commencez par créer votre première équipe</p>
+            <Button onClick={() => setShowForm(true)} className="bg-primary hover:bg-primary/90">
+              <Plus className="mr-2 h-4 w-4" />
+              Créer une équipe
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {teams.map((team) => (
+            <Card
+              key={team.id}
+              className="group border-0 bg-card transition-all duration-300 hover:bg-secondary hover:ring-1 hover:ring-primary/50"
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
                       {team.logo_url ? (
                         <img
                           src={team.logo_url}
                           alt={team.name}
-                          className="h-10 w-10 rounded-full object-cover"
+                          className="h-10 w-10 rounded-lg object-cover"
                         />
                       ) : (
-                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
-                          <Users className="h-5 w-5 text-orange-500" />
-                        </div>
+                        <Users className="h-7 w-7" />
                       )}
-                      <div>
-                        <h3 className="font-semibold">{team.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Ligue locale
-                        </p>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-foreground">{team.name}</h3>
+                      <div className="mt-1 flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-secondary text-muted-foreground">
+                          Local
+                        </Badge>
                       </div>
                     </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(team)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(team)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
+                  <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(team)}
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(team)}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <UserCircle className="h-4 w-4" />
+                  <span>Cliquez pour voir les joueurs</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </PageLayout>
   );
 }

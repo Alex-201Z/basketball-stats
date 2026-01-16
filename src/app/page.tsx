@@ -1,40 +1,88 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Sidebar, MobileMenuButton } from '@/components/Sidebar';
+import { DashboardStats } from '@/components/DashboardStats';
+import { RecentMatches } from '@/components/RecentMatches';
+import { TopPlayersCard } from '@/components/TopPlayersCard';
 import { RankingTable } from '@/components/RankingTable';
 import { StatsChart } from '@/components/StatsChart';
-import { LeagueSelector } from '@/components/LeagueSelector';
 import { useRankings } from '@/hooks/useRankings';
+import { useMatches } from '@/hooks/useMatches';
 import { useRealtimeRefresh } from '@/hooks/useRealtime';
-import type { RankingCategory, LeagueType } from '@/types';
-import { Trophy, TrendingUp, Users, FileDown, RefreshCw, Calendar, UserCircle } from 'lucide-react';
-import Link from 'next/link';
+import type { RankingCategory } from '@/types';
+import {
+  Trophy,
+  FileDown,
+  RefreshCw,
+  TrendingUp,
+  Target,
+  Zap,
+  Shield,
+  Hand,
+  BarChart3,
+  Bell,
+  Menu,
+} from 'lucide-react';
+
+const CATEGORY_CONFIG = {
+  points: { label: 'Points', icon: Target, color: 'text-primary' },
+  rebounds: { label: 'Rebonds', icon: TrendingUp, color: 'text-blue-500' },
+  assists: { label: 'Passes', icon: Zap, color: 'text-green-500' },
+  steals: { label: 'Intercept.', icon: Hand, color: 'text-purple-500' },
+  blocks: { label: 'Contres', icon: Shield, color: 'text-red-500' },
+  global: { label: 'Global', icon: BarChart3, color: 'text-foreground' },
+};
 
 export default function Dashboard() {
-  const [league, setLeague] = useState<LeagueType>('all');
   const [category, setCategory] = useState<RankingCategory>('points');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [stats, setStats] = useState({
+    totalPlayers: 0,
+    totalTeams: 0,
+    totalMatches: 0,
+    matchesInProgress: 0,
+  });
 
-  // Hook pour les classements avec rafraîchissement temps réel
   const { rankings, loading, error, refetch } = useRankings({
     category,
-    league,
+    league: 'local',
     limit: 10,
   });
 
-  // Activer le temps réel
-  useRealtimeRefresh('player_stats', refetch);
+  const { matches, loading: matchesLoading } = useMatches({ league: 'local' });
 
-  const handleSync = async () => {
-    try {
-      await fetch('/api/nba', { method: 'POST' });
-      refetch();
-    } catch (err) {
-      console.error('Erreur sync:', err);
-    }
-  };
+  // Récupérer les stats globales
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [teamsRes, playersRes] = await Promise.all([
+          fetch('/api/teams'),
+          fetch('/api/players'),
+        ]);
+        const teamsData = await teamsRes.json();
+        const playersData = await playersRes.json();
+
+        const inProgressMatches = matches.filter(m => m.status === 'in_progress').length;
+        const completedMatches = matches.filter(m => m.status === 'completed').length;
+
+        setStats({
+          totalPlayers: playersData.data?.length || 0,
+          totalTeams: teamsData.data?.length || 0,
+          totalMatches: completedMatches,
+          matchesInProgress: inProgressMatches,
+        });
+      } catch (err) {
+        console.error('Erreur stats:', err);
+      }
+    };
+    fetchStats();
+  }, [matches]);
+
+  useRealtimeRefresh('player_stats', refetch);
 
   const handleExportPDF = async () => {
     try {
@@ -42,7 +90,6 @@ export default function Dashboard() {
       const result = await response.json();
 
       if (result.success) {
-        // Import dynamique pour éviter les erreurs SSR
         const { generateWeeklyReport } = await import('@/lib/pdf-generator');
         generateWeeklyReport(result.data);
       } else {
@@ -54,172 +101,150 @@ export default function Dashboard() {
     }
   };
 
+  const topScorer = rankings[0]
+    ? { name: `${rankings[0].first_name} ${rankings[0].last_name}`, points: rankings[0].avg_points || 0 }
+    : undefined;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {/* Main Content */}
+      <div className="lg:ml-64">
+        {/* Top Header */}
+        <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-sm">
+          <div className="flex h-16 items-center justify-between px-4 lg:px-6">
             <div className="flex items-center gap-3">
-              <Trophy className="h-8 w-8 text-orange-500" />
-              <h1 className="text-2xl font-bold">Basketball Stats</h1>
+              <MobileMenuButton onClick={() => setSidebarOpen(true)} />
+              <div>
+                <h1 className="text-lg lg:text-xl font-bold text-foreground">Dashboard</h1>
+                <p className="text-xs lg:text-sm text-muted-foreground hidden sm:block">Vue d&apos;ensemble des statistiques</p>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <LeagueSelector value={league} onChange={setLeague} />
-              <Button variant="outline" size="sm" onClick={handleSync}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Sync NBA
+            <div className="flex items-center gap-2 lg:gap-3">
+              <Button
+                size="sm"
+                onClick={handleExportPDF}
+                className="bg-primary hover:bg-primary/90 text-xs lg:text-sm"
+              >
+                <FileDown className="h-4 w-4 lg:mr-2" />
+                <span className="hidden lg:inline">Rapport PDF</span>
               </Button>
-              <Button variant="default" size="sm" onClick={handleExportPDF}>
-                <FileDown className="h-4 w-4 mr-2" />
-                Rapport PDF
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5 text-muted-foreground" />
+                <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary" />
               </Button>
             </div>
           </div>
-          {/* Navigation */}
-          <nav className="flex gap-4 mt-4 pt-4 border-t">
-            <Link href="/teams" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <Users className="h-4 w-4" />
-              Équipes
-            </Link>
-            <Link href="/players" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <UserCircle className="h-4 w-4" />
-              Joueurs
-            </Link>
-            <Link href="/matches" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <Calendar className="h-4 w-4" />
-              Matchs
-            </Link>
-          </nav>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Joueurs classés</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{rankings.length}</div>
-              <p className="text-xs text-muted-foreground">
-                {league === 'all' ? 'Toutes ligues' : league.toUpperCase()}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Meilleur scoreur</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {rankings[0]
-                  ? `${rankings[0].first_name} ${rankings[0].last_name}`
-                  : '-'}
+        {/* Dashboard Content */}
+        <main className="p-4 lg:p-6 space-y-4 lg:space-y-6">
+          {/* Stats Cards */}
+          <DashboardStats
+            totalPlayers={stats.totalPlayers}
+            totalTeams={stats.totalTeams}
+            totalMatches={stats.totalMatches}
+            matchesInProgress={stats.matchesInProgress}
+            topScorer={topScorer}
+          />
+
+          {/* Grid: Recent Matches & Top Players */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <RecentMatches matches={matches} loading={matchesLoading} />
+            </div>
+            <div className="space-y-6">
+              <TopPlayersCard
+                rankings={rankings}
+                title="Top Scoreurs"
+                statKey="avg_points"
+                statLabel="PTS/M"
+                loading={loading}
+              />
+            </div>
+          </div>
+
+          {/* Rankings Section */}
+          <Card className="border-0 bg-card">
+            <CardHeader className="border-b border-border">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <Trophy className="h-5 w-5 text-primary" />
+                  Classements
+                </CardTitle>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {rankings[0]?.avg_points?.toFixed(1) || '0'} PTS/M
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Catégorie</CardTitle>
-              <Trophy className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold capitalize">{category}</div>
-              <p className="text-xs text-muted-foreground">Classement actuel</p>
-            </CardContent>
-          </Card>
-        </div>
+            <CardContent className="p-6">
+              <Tabs
+                value={category}
+                onValueChange={(v) => setCategory(v as RankingCategory)}
+              >
+                <TabsList className="mb-4 lg:mb-6 grid w-full grid-cols-3 lg:grid-cols-6 gap-1 lg:gap-2 bg-secondary p-1 rounded-xl">
+                  {Object.entries(CATEGORY_CONFIG).map(([key, config]) => {
+                    const Icon = config.icon;
+                    return (
+                      <TabsTrigger
+                        key={key}
+                        value={key}
+                        className="flex items-center justify-center gap-1 lg:gap-1.5 py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-lg text-muted-foreground data-[state=active]:text-foreground text-xs lg:text-sm"
+                      >
+                        <Icon className={`h-3.5 w-3.5 lg:h-4 lg:w-4 ${category === key ? config.color : 'text-muted-foreground'}`} />
+                        <span className="hidden sm:inline">{config.label}</span>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
 
-        {/* Rankings Tabs */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Classements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs
-              value={category}
-              onValueChange={(v) => setCategory(v as RankingCategory)}
-            >
-              <TabsList className="grid w-full grid-cols-6 mb-6">
-                <TabsTrigger value="points">Points</TabsTrigger>
-                <TabsTrigger value="rebounds">Rebonds</TabsTrigger>
-                <TabsTrigger value="assists">Passes</TabsTrigger>
-                <TabsTrigger value="steals">Intercept.</TabsTrigger>
-                <TabsTrigger value="blocks">Contres</TabsTrigger>
-                <TabsTrigger value="global">Global</TabsTrigger>
-              </TabsList>
-
-              {['points', 'rebounds', 'assists', 'steals', 'blocks', 'global'].map(
-                (cat) => (
+                {Object.keys(CATEGORY_CONFIG).map((cat) => (
                   <TabsContent key={cat} value={cat} className="space-y-6">
                     {/* Chart */}
-                    <div className="border rounded-lg p-4">
+                    <div className="rounded-xl border border-border bg-secondary/50 p-6">
                       <StatsChart
                         rankings={rankings}
                         category={cat as RankingCategory}
-                        title={`Top 10 - ${getCategoryTitle(cat as RankingCategory)}`}
+                        title={`Top 10 - ${CATEGORY_CONFIG[cat as RankingCategory].label}`}
                       />
                     </div>
 
                     {/* Table */}
                     {loading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                        <span className="ml-2 text-muted-foreground">
-                          Chargement...
-                        </span>
+                      <div className="flex items-center justify-center py-12">
+                        <div className="flex items-center gap-3">
+                          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                          <span className="text-muted-foreground">Chargement...</span>
+                        </div>
                       </div>
                     ) : error ? (
-                      <div className="text-center py-8 text-red-500">
+                      <div className="rounded-xl bg-destructive/10 p-6 text-center text-destructive">
                         Erreur: {error}
                       </div>
                     ) : (
-                      <RankingTable
-                        rankings={rankings}
-                        category={cat as RankingCategory}
-                      />
+                      <div className="rounded-xl border border-border overflow-hidden">
+                        <RankingTable
+                          rankings={rankings}
+                          category={cat as RankingCategory}
+                        />
+                      </div>
                     )}
                   </TabsContent>
-                )
-              )}
-            </Tabs>
-          </CardContent>
-        </Card>
-      </main>
+                ))}
+              </Tabs>
+            </CardContent>
+          </Card>
+        </main>
 
-      {/* Footer */}
-      <footer className="border-t mt-8">
-        <div className="container mx-auto px-4 py-4 text-center text-sm text-muted-foreground">
-          Basketball Stats App - Classements en temps réel
-        </div>
-      </footer>
+        {/* Footer */}
+        <footer className="border-t border-border bg-card px-6 py-4">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <p>Basketball Stats Manager © 2026</p>
+            <p className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              Temps réel actif
+            </p>
+          </div>
+        </footer>
+      </div>
     </div>
   );
-}
-
-function getCategoryTitle(category: RankingCategory): string {
-  switch (category) {
-    case 'points':
-      return 'Points par match';
-    case 'rebounds':
-      return 'Rebonds par match';
-    case 'assists':
-      return 'Passes décisives par match';
-    case 'steals':
-      return 'Interceptions par match';
-    case 'blocks':
-      return 'Contres par match';
-    case 'global':
-      return 'Score global';
-    default:
-      return category;
-  }
 }

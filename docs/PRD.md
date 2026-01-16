@@ -1,9 +1,9 @@
 # PRD - Basketball Stats Application
 
 ## Product Requirements Document
-**Version:** 2.1
-**Date:** 14 janvier 2026
-**Statut:** ✅ COMPLET - Prêt pour production
+**Version:** 4.0
+**Date:** 15 janvier 2026
+**Statut:** ✅ COMPLET - Thème sombre style Revolut/balldontlie
 
 ---
 
@@ -42,35 +42,41 @@ Les ligues locales de basketball n'ont pas d'outil simple pour :
 
 | Fonctionnalité | Description | Route/Fichier |
 |----------------|-------------|---------------|
-| Dashboard principal | Vue d'ensemble des classements avec graphiques | `/` (page.tsx) |
+| Dashboard moderne | Vue d'ensemble avec sidebar, stats cards et graphiques | `/` (page.tsx) |
 | Classements par catégorie | Points, rebonds, passes, interceptions, contres, global | `RankingTable.tsx` |
 | Graphiques interactifs | Visualisation Chart.js des top 10 | `StatsChart.tsx` |
 | Sélecteur de ligue | Filtrage NBA/Local/Tous | `LeagueSelector.tsx` |
 | Sync NBA | Synchronisation via balldontlie.io | `POST /api/nba` |
 | Export PDF | Rapport hebdomadaire téléchargeable | `GET /api/reports` |
 | Temps réel | Mise à jour via Supabase Realtime | `useRealtime.ts` |
-| CRUD Équipes | Créer, modifier, supprimer des équipes locales | `/teams` |
+| CRUD Équipes | Interface moderne avec cartes | `/teams` |
 | CRUD Joueurs | Gérer les joueurs avec attribution aux équipes | `/players` |
 | CRUD Matchs | Planifier et gérer les matchs | `/matches` |
 | Saisie en direct | Interface pour entrer les stats pendant le match | `/matches/[id]/live` |
 | Boutons stats rapides | +1, +2, +3 pour points, +1 pour autres stats | `LiveScoringPage` |
 | APIs complètes | Teams, Players, Matches, Stats CRUD | `/api/*` |
 
-### 2.2 Fonctionnalités terminées (vérification 14/01/2026) ✅
+### 2.2 Nouveautés v4.0 (15/01/2026) ✅
 
-| Fonctionnalité | Description | Statut |
-|----------------|-------------|--------|
-| Affichage équipe dans classement | Colonne "Équipe" dans RankingTable.tsx | ✅ Complet |
-| Équipe dans export PDF | Nom d'équipe entre parenthèses | ✅ Complet |
-| Page détails match | Box score avec stats des joueurs | ✅ Complet |
+| Fonctionnalité | Description |
+|----------------|-------------|
+| Thème sombre Revolut | Design noir moderne (#0a0a0b background, accents orange) |
+| Page joueurs réorganisée | Affichage par équipe avec navigation drill-down |
+| Recherche de joueurs | Barre de recherche globale avec filtrage en temps réel |
+| Suppression API NBA | Plus de dépendance externe, données locales uniquement |
+| Design système cohérent | Variables CSS sémantiques (foreground, background, etc.) |
+| UI Moderne | Bords arrondis (border-radius xl), transitions fluides |
 
-### 2.3 Améliorations futures (optionnelles) 🔮
+### 2.3 Nouveautés v3.0 (15/01/2026) ✅
 
-| Fonctionnalité | Description | Priorité |
-|----------------|-------------|----------|
-| Timer de match | Minuterie 4 quarts-temps intégrée | BASSE |
-| Historique/Archives | Filtres avancés par date, saison | BASSE |
-| Statistiques avancées | Efficacité, +/-, moyennes sur période | BASSE |
+| Fonctionnalité | Description |
+|----------------|-------------|
+| Sidebar de navigation | Navigation latérale fixe avec design moderne |
+| Dashboard Stats Cards | 4 cartes de statistiques avec animations |
+| Top Players Widget | Affichage des top 3 scoreurs |
+| Recent Matches Widget | Liste des matchs récents avec statuts |
+| Design système cohérent | Interface uniforme sur toutes les pages |
+| Données de démonstration | 4 équipes, 15 joueurs, 4 matchs, 30 stats |
 
 ---
 
@@ -80,21 +86,30 @@ Les ligues locales de basketball n'ont pas d'outil simple pour :
 ```
 Frontend:     Next.js 16.1.1, React 19, TypeScript
 UI:           Tailwind CSS 4, shadcn/ui, Lucide icons
-Backend:      Next.js API Routes + Supabase
-Base données: PostgreSQL (Supabase) / MySQL (Prisma - Hostinger)
-ORM:          Prisma 7.2
-Temps réel:   Supabase Realtime
+Backend:      Next.js API Routes
+Base données: MySQL (XAMPP/MariaDB)
+ORM:          Prisma 7.2 avec adapter MariaDB
+Temps réel:   Supabase Realtime (optionnel)
 Graphiques:   Chart.js + react-chartjs-2
 PDF:          jsPDF
 ```
 
-### 3.2 Schéma de base de données
+### 3.2 Base de données MySQL (XAMPP)
+```
+Hôte:         localhost
+Port:         3306
+Utilisateur:  root
+Mot de passe: (vide)
+Base:         basketball_stats
+```
+
+### 3.3 Schéma de base de données
 
 ```
 ┌─────────────┐     ┌─────────────┐
 │   teams     │     │   players   │
 ├─────────────┤     ├─────────────┤
-│ id          │◄────┤ team_id     │
+│ id (PK)     │◄────┤ team_id     │
 │ name        │     │ first_name  │
 │ logo_url    │     │ last_name   │
 │ league      │     │ jersey_num  │
@@ -108,7 +123,7 @@ PDF:          jsPDF
 ┌─────────────┐     ┌─────────────┐
 │   matches   │     │player_stats │
 ├─────────────┤     ├─────────────┤
-│ id          │◄────┤ match_id    │
+│ id (PK)     │◄────┤ match_id    │
 │ home_team_id│     │ player_id   │
 │ away_team_id│     │ points      │
 │ match_date  │     │ rebounds    │
@@ -123,19 +138,20 @@ PDF:          jsPDF
                     └─────────────┘
 ```
 
-### 3.3 Structure des fichiers (actuelle)
+### 3.4 Structure des fichiers
 
 ```
 src/
 ├── app/
-│   ├── page.tsx                    ✅ Dashboard
-│   ├── layout.tsx                  ✅ Layout
+│   ├── page.tsx                    ✅ Dashboard moderne
+│   ├── layout.tsx                  ✅ Layout global
+│   ├── globals.css                 ✅ Styles Tailwind
 │   ├── teams/
-│   │   └── page.tsx               ✅ CRUD équipes
+│   │   └── page.tsx               ✅ CRUD équipes (nouveau design)
 │   ├── players/
 │   │   └── page.tsx               ✅ CRUD joueurs
 │   ├── matches/
-│   │   ├── page.tsx               ✅ Liste des matchs
+│   │   ├── page.tsx               ✅ Liste matchs (nouveau design)
 │   │   └── [id]/
 │   │       ├── page.tsx           ✅ Détails du match
 │   │       └── live/page.tsx      ✅ Saisie en direct
@@ -149,6 +165,11 @@ src/
 │       └── stats/                 ✅ CRUD stats
 ├── components/
 │   ├── ui/                        ✅ shadcn components
+│   ├── Sidebar.tsx                ✅ NOUVEAU - Navigation latérale
+│   ├── PageLayout.tsx             ✅ NOUVEAU - Layout partagé
+│   ├── DashboardStats.tsx         ✅ NOUVEAU - Stats cards
+│   ├── RecentMatches.tsx          ✅ NOUVEAU - Matchs récents
+│   ├── TopPlayersCard.tsx         ✅ NOUVEAU - Top joueurs
 │   ├── LeagueSelector.tsx         ✅ Sélecteur de ligue
 │   ├── RankingTable.tsx           ✅ Tableau classements
 │   └── StatsChart.tsx             ✅ Graphiques
@@ -160,7 +181,7 @@ src/
 │   └── useMatches.ts              ✅ Hook matchs
 ├── lib/
 │   ├── supabase.ts                ✅ Client Supabase
-│   ├── prisma.ts                  ✅ Client Prisma
+│   ├── prisma.ts                  ✅ Client Prisma/MySQL
 │   ├── pdf-generator.ts           ✅ Génération PDF
 │   └── utils.ts                   ✅ Utilitaires
 └── types/
@@ -169,186 +190,73 @@ src/
 
 ---
 
-## 4. Spécifications des API
+## 4. Design UI/UX
 
-### 4.1 API Teams ✅
-```
-GET    /api/teams           Liste des équipes
-POST   /api/teams           Créer une équipe
-GET    /api/teams/[id]      Détails équipe
-PUT    /api/teams/[id]      Modifier équipe
-DELETE /api/teams/[id]      Supprimer équipe
-```
+### 4.1 Palette de couleurs (Thème sombre)
+- **Principal**: Orange (#f97316) - Boutons et accents
+- **Fond**: Noir (#0a0a0b) - Background principal
+- **Cartes**: Gris foncé (#111113) - Conteneurs
+- **Secondaire**: Gris (#1a1a1d) - Hover states, inputs
+- **Bordures**: Gris subtil (#27272a)
+- **Texte**: Blanc (#fafafa) - Principal, Gris (#71717a) - Secondaire
 
-### 4.2 API Players ✅
-```
-GET    /api/players         Liste joueurs (params: team_id, league)
-POST   /api/players         Créer joueur
-GET    /api/players/[id]    Détails joueur
-PUT    /api/players/[id]    Modifier joueur
-DELETE /api/players/[id]    Supprimer joueur
-```
-
-### 4.3 API Matches ✅
-```
-GET    /api/matches         Liste matchs (params: league, status, team_id)
-POST   /api/matches         Créer match
-GET    /api/matches/[id]    Détails match avec stats
-PUT    /api/matches/[id]    Modifier match (status, score)
-DELETE /api/matches/[id]    Supprimer match
-POST   /api/matches/[id]/stats  Ajouter/modifier stats joueur
-```
-
-### 4.4 API Stats ✅
-```
-PUT    /api/stats/[id]      Modifier stat (increment ou mise à jour)
-DELETE /api/stats/[id]      Supprimer stat
-```
-
-### 4.5 API Classements et Rapports ✅
-```
-GET    /api/rankings        Classements (params: category, league, limit)
-POST   /api/nba             Synchroniser données NBA
-GET    /api/reports         Rapport hebdomadaire (format=pdf)
-```
+### 4.2 Composants principaux
+- **Sidebar**: Fond sombre avec bordure, icônes Lucide
+- **Cards**: Bords arrondis (xl), transitions au hover
+- **Boutons**: Orange pour actions principales, outline subtil pour secondaires
+- **Tables**: Design épuré avec hover states sombres
+- **Inputs**: Fond secondaire, bordures subtiles, focus orange
 
 ---
 
-## 5. Workflow utilisateur
+## 5. Données de démonstration
 
-### 5.1 Configuration initiale
-1. Créer des équipes via `/teams`
-2. Ajouter des joueurs à chaque équipe via `/players`
-3. L'application est prête pour les matchs
+### 5.1 Équipes (6 total)
+- Paris Basketball
+- Lyon Asvel
+- AS Monaco Basket
+- LDLC Asvel
+- + 2 équipes initiales
 
-### 5.2 Jour de match
-1. Créer un match via `/matches` (sélectionner équipes, date/heure)
-2. Cliquer "Démarrer" pour ouvrir l'interface de saisie en direct
-3. Utiliser les boutons +1/+2/+3 pour les points, +1 pour les autres stats
-4. Le score se met à jour automatiquement
-5. Cliquer "Terminer le match" quand c'est fini
+### 5.2 Joueurs (16 total)
+- 5 joueurs par équipe principale
+- Positions variées (PG, SG, SF, PF, C)
 
-### 5.3 Consultation hebdomadaire (mercredi)
-1. Dashboard principal avec classements à jour
-2. Filtrer par ligue (Local, NBA, Tous)
-3. Télécharger le rapport PDF pour envoi
+### 5.3 Matchs (5 total)
+- 3 matchs terminés avec stats
+- 1 match programmé
+- 1 match initial
 
----
-
-## 6. Plan de développement
-
-### ✅ TOUTES LES PHASES COMPLÈTES
-
-#### 6.1 Affichage du classement - TERMINÉ ✅
-L'équipe apparaît déjà avec chaque joueur :
-- `RankingTable.tsx:72` - En-tête "Équipe"
-- `RankingTable.tsx:101` - Affiche `player.team_name`
-- `rankings/route.ts:56` - API retourne `team_name`
-- `pdf-generator.ts:82` - PDF avec équipe entre parenthèses
-
-#### 6.2 Tests de validation - TERMINÉ ✅
-- [x] Classements affichent l'équipe
-- [x] API Rankings inclut team_name
-- [x] Export PDF avec équipes
-- [x] Build Next.js sans erreurs
-
-### Améliorations futures (optionnelles)
-
-#### 6.3 Timer de match
-- Ajouter un composant `MatchTimer.tsx`
-- Gestion des 4 quarts-temps
-- Pause/reprise du timer
-
-#### 6.4 Statistiques avancées
-- Efficacité (PER, +/-)
-- Moyennes sur période personnalisée
-- Tendances graphiques
+### 5.4 Statistiques (30+ entrées)
+- Stats complètes pour tous les matchs terminés
+- Points, rebonds, passes, interceptions, contres
 
 ---
 
-## 7. Critères d'acceptation
+## 6. Configuration et déploiement
 
-### 7.1 Fonctionnalités validées ✅
-- [x] Un administrateur peut créer une équipe locale
-- [x] Un administrateur peut ajouter des joueurs à une équipe
-- [x] Un marqueur peut créer un match et le démarrer
-- [x] Un marqueur peut saisir les stats en temps réel pendant le match
-- [x] Les classements se mettent à jour automatiquement après chaque saisie
-- [x] Le rapport PDF peut être généré
-
-### 7.2 Validé ✅
-- [x] **L'équipe du joueur apparaît dans les classements** (colonne "Équipe" dans RankingTable.tsx:72,101)
-- [x] **Le rapport PDF inclut le nom d'équipe** (pdf-generator.ts:82 - entre parenthèses)
-
-### 7.3 Performance
-- [x] Temps de chargement initial < 2s
-- [x] Mise à jour temps réel < 500ms
-- [x] Support mobile (responsive)
-
-### 7.4 Fiabilité
-- [x] Validation des données côté serveur
-- [x] Gestion des erreurs avec messages clairs
-- [x] Build Next.js sans erreurs
-
----
-
-## 8. Configuration requise
-
-### 8.1 Variables d'environnement
+### 6.1 Variables d'environnement (.env)
 ```env
-# Supabase (Production)
+# MySQL via XAMPP
+DATABASE_URL="mysql://root:@localhost:3306/basketball_stats"
+DATABASE_HOST=localhost
+DATABASE_PORT=3306
+DATABASE_USER=root
+DATABASE_PASSWORD=
+DATABASE_NAME=basketball_stats
+
+# Supabase (optionnel pour temps réel)
 NEXT_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-clé-anon
-SUPABASE_SERVICE_ROLE_KEY=votre-clé-service
 
-# NBA API (Optionnel)
+# NBA API (optionnel)
 NBA_API_KEY=votre-clé-balldontlie
-
-# Prisma/MySQL (Alternative Hostinger)
-DATABASE_URL=mysql://user:password@host:port/database
 ```
 
-### 8.2 Base de données
-- **Option 1**: Supabase PostgreSQL (recommandé pour temps réel)
-- **Option 2**: MySQL avec Prisma (pour hébergement Hostinger)
-
----
-
-## 9. Glossaire
-
-| Terme | Définition |
-|-------|------------|
-| PTS | Points marqués |
-| REB | Rebonds (offensifs + défensifs) |
-| AST | Passes décisives (assists) |
-| STL | Interceptions (steals) |
-| BLK | Contres (blocks) |
-| TO | Balles perdues (turnovers) |
-| FG | Tirs réussis/tentés (field goals) |
-| 3PT | Tirs à 3 points réussis/tentés |
-| FT | Lancers francs réussis/tentés |
-
----
-
-## 10. Notes de session
-
-### Session du 14 janvier 2026 (Finalisation)
-- Build vérifié : ✅ Compile sans erreurs
-- Toutes les pages et APIs sont fonctionnelles
-- **Vérification des fonctionnalités** :
-  - ✅ Colonne "Équipe" présente dans `RankingTable.tsx` (lignes 72, 101)
-  - ✅ API Rankings retourne `team_name` (route.ts ligne 56)
-  - ✅ PDF inclut l'équipe entre parenthèses (pdf-generator.ts ligne 82)
-
-### 🎉 PROJET COMPLET
-L'application est prête pour la production. Toutes les fonctionnalités demandées sont implémentées :
-- Classement des joueurs avec leur équipe
-- Saisie des stats en temps réel
-- Export PDF hebdomadaire avec équipes
-- CRUD complet (équipes, joueurs, matchs)
-
-### Commandes utiles
+### 6.2 Commandes utiles
 ```bash
+# Démarrer XAMPP MySQL d'abord !
+
 # Développement
 npm run dev
 
@@ -357,10 +265,70 @@ npm run build
 
 # Lancement production
 npm start
+
+# Génération Prisma
+npx prisma generate
 ```
 
-### Workflow hebdomadaire (mercredi)
-1. Ouvrir le dashboard (/)
-2. Sélectionner "Local" dans le sélecteur de ligue
-3. Cliquer "Rapport PDF" pour télécharger le classement
-4. Envoyer le PDF
+---
+
+## 7. Workflow utilisateur
+
+### 7.1 Configuration initiale
+1. Démarrer XAMPP (MySQL)
+2. Lancer `npm run dev`
+3. Ouvrir http://localhost:3000
+
+### 7.2 Jour de match
+1. Créer un match via `/matches` (sélectionner équipes, date/heure)
+2. Cliquer "Démarrer" pour ouvrir l'interface de saisie en direct
+3. Utiliser les boutons +1/+2/+3 pour les points, +1 pour les autres stats
+4. Le score se met à jour automatiquement
+5. Cliquer "Terminer le match" quand c'est fini
+
+### 7.3 Consultation hebdomadaire (mercredi)
+1. Dashboard principal avec classements à jour
+2. Filtrer par ligue (Local, NBA, Tous)
+3. Télécharger le rapport PDF pour envoi
+
+---
+
+## 8. Notes de session
+
+### Session du 15 janvier 2026 (v4.0 - Thème sombre)
+- ✅ Nouveau thème sombre style Revolut/balldontlie
+- ✅ Page joueurs réorganisée : vue par équipe avec drill-down
+- ✅ Recherche de joueurs globale avec filtrage temps réel
+- ✅ Suppression du bouton Sync NBA et LeagueSelector
+- ✅ Mise à jour de tous les composants avec variables CSS sémantiques
+- ✅ Build Next.js 16.1.1 réussi sans erreurs
+
+### Session précédente (v3.0 - Dashboard moderne)
+- ✅ Nouveau design dashboard avec sidebar
+- ✅ Composants modulaires (DashboardStats, RecentMatches, TopPlayersCard)
+- ✅ Interface cohérente sur toutes les pages
+- ✅ Données de démonstration ajoutées
+- ✅ Base de données MySQL fonctionnelle via XAMPP
+
+### 🎉 PROJET COMPLET v4.0
+L'application est prête pour la production avec :
+- **Thème sombre moderne** style Revolut/balldontlie
+- **Page joueurs intuitive** avec navigation par équipe
+- **Recherche rapide** pour trouver n'importe quel joueur
+- Interface utilisateur professionnelle et cohérente
+- Classement des joueurs avec leur équipe
+- Saisie des stats en temps réel
+- Export PDF hebdomadaire avec équipes
+- CRUD complet (équipes, joueurs, matchs)
+
+---
+
+## 9. Améliorations futures (optionnelles)
+
+| Fonctionnalité | Description | Priorité |
+|----------------|-------------|----------|
+| Timer de match | Minuterie 4 quarts-temps intégrée | BASSE |
+| Historique/Archives | Filtres avancés par date, saison | BASSE |
+| Statistiques avancées | Efficacité, +/-, moyennes sur période | BASSE |
+| Mode sombre | Thème dark pour l'application | BASSE |
+| Export Excel | Export des données au format XLSX | BASSE |

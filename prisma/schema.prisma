@@ -32,6 +32,26 @@ enum MatchStatus {
   completed
 }
 
+// Enum pour les rôles utilisateur
+enum UserRole {
+  admin
+  scorer
+  viewer
+}
+
+// Table des utilisateurs
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?   @db.VarChar(100)
+  role          UserRole  @default(viewer)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
 // Table des équipes
 model Team {
   id          String   @id

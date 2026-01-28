@@ -18,7 +18,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma Client
+# Generate Prisma Client (needs a dummy DATABASE_URL for Prisma 7)
+ENV DATABASE_URL="mysql://dummy:dummy@localhost:3306/dummy"
 RUN npx prisma generate
 
 # Build the application

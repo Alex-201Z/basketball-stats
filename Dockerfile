@@ -5,11 +5,11 @@ FROM base AS deps
 WORKDIR /app
 
 # Copy package.json and package-lock.json
-COPY package.json package-lock.json ./ 
+COPY package.json package-lock.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 # Install dependencies
-ENV DATABASE_URL="mysql://dummy:dummy@localhost:3306/dummy"
 RUN npm ci
 
 # Rebuild the source code only when needed
@@ -24,10 +24,6 @@ RUN npx prisma generate
 # Build the application
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED 1
-# Skip type checking and linting for faster builds if desired, but default is fine.
-# We might need to set a dummy DATABASE_URL if the build process tries to validate it, 
-# though usually it's not needed for 'next build' unless pages fetch data at build time.
-ENV DATABASE_URL="mysql://root:password@localhost:3306/basketball_stats"
 
 RUN npm run build
 
@@ -45,8 +41,9 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Copy prisma schema for migrations if needed at runtime
+# Copy prisma schema and config for migrations if needed at runtime
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 # Copy package.json just in case
 COPY --from=builder /app/package.json ./package.json

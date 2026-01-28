@@ -1,0 +1,66 @@
+services:
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: basketball_stats
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  migrator:
+    build:
+      context: .
+      target: builder
+    command: npx prisma db push
+    environment:
+      DATABASE_URL: mysql://user:password@db:3306/basketball_stats
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      # Env vars for src/lib/prisma.ts manual connection
+      DATABASE_HOST: db
+      DATABASE_USER: user
+      DATABASE_PASSWORD: password
+      DATABASE_NAME: basketball_stats
+      DATABASE_PORT: 3306
+
+      # Standard Env vars
+      DATABASE_URL: mysql://user:password@db:3306/basketball_stats
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: "your-secret-key-change-me"
+      AUTH_TRUST_HOST: "true"
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --url http://app:3000
+    depends_on:
+      - app
+
+volumes:
+  db_data:

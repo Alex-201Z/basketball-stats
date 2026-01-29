@@ -20,12 +20,14 @@ RUN npm ci
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/src/generated ./src/generated
+# Copy source code first
 COPY . .
+# Then copy Prisma generated client (overwrites empty/missing src/generated)
+COPY --from=deps /app/src/generated ./src/generated
 
 # Build the application
 # Disable telemetry during build
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
 

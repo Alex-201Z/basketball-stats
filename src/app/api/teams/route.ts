@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import type { League } from '@/generated/prisma';
+import type { League } from '../../../../generated/prisma';
 
 // GET /api/teams - Liste des équipes
 export async function GET(request: NextRequest) {

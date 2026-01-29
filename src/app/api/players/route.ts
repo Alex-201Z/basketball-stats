@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import type { League, Position } from '@/generated/prisma';
+import type { League, Position } from '../../../../generated/prisma';
 
 const VALID_POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C'];
 

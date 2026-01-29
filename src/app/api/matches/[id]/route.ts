@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import type { MatchStatus } from '@/generated/prisma';
+import type { MatchStatus } from '../../../../../generated/prisma';
 
 const VALID_STATUSES: MatchStatus[] = ['scheduled', 'in_progress', 'completed'];
 

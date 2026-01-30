@@ -9,6 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Trophy, Medal, Award } from 'lucide-react';
 import type { PlayerRanking, RankingCategory } from '@/types';
 
 interface RankingTableProps {
@@ -56,6 +57,31 @@ export function RankingTable({ rankings, category, showRank = true }: RankingTab
     }
   };
 
+  const getRankDisplay = (index: number) => {
+    switch (index) {
+      case 0:
+        return (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500/10" title="1er">
+            <Trophy className="h-3.5 w-3.5 text-yellow-500" aria-label="1ère place" />
+          </div>
+        );
+      case 1:
+        return (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-500/10" title="2ème">
+            <Medal className="h-3.5 w-3.5 text-slate-400" aria-label="2ème place" />
+          </div>
+        );
+      case 2:
+        return (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-500/10" title="3ème">
+            <Award className="h-3.5 w-3.5 text-orange-400" aria-label="3ème place" />
+          </div>
+        );
+      default:
+        return <span className="pl-1.5 font-bold text-primary">{index + 1}</span>;
+    }
+  };
+
   return (
     <Table>
       <TableHeader>
@@ -71,8 +97,8 @@ export function RankingTable({ rankings, category, showRank = true }: RankingTab
         {rankings.map((player, index) => (
           <TableRow key={player.id} className="border-border hover:bg-secondary/50">
             {showRank && (
-              <TableCell className="font-bold text-primary">
-                {index + 1}
+              <TableCell>
+                {getRankDisplay(index)}
               </TableCell>
             )}
             <TableCell>

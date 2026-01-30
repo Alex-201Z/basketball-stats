@@ -71,7 +71,7 @@ export function useRealtime({
     };
   }, [table, onInsert, onUpdate, onDelete, onChange]);
 
-  return channelRef.current;
+  return null;
 }
 
 // Hook simplifié pour rafraîchir les données lors de changements

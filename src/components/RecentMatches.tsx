@@ -131,7 +131,12 @@ export function RecentMatches({ matches, loading }: RecentMatchesProps) {
                   </Badge>
                   {(match.status === 'scheduled' || match.status === 'in_progress') && (
                     <Link href={`/matches/${match.id}/live`}>
-                      <Button size="sm" variant="ghost" className="text-green-500 hover:bg-green-500/10">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-green-500 hover:bg-green-500/10"
+                        aria-label={match.status === 'scheduled' ? "Démarrer le match" : "Continuer le match"}
+                      >
                         <Play className="h-4 w-4" />
                       </Button>
                     </Link>

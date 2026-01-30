@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -188,11 +189,15 @@ export default function PlayersPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             {player.photo_url ? (
-              <img
-                src={player.photo_url}
-                alt={`${player.first_name} ${player.last_name}`}
-                className="h-12 w-12 rounded-full object-cover ring-2 ring-border"
-              />
+              <div className="relative h-12 w-12 overflow-hidden rounded-full ring-2 ring-border">
+                <Image
+                  src={player.photo_url}
+                  alt={`${player.first_name} ${player.last_name}`}
+                  fill
+                  className="object-cover"
+                  sizes="48px"
+                />
+              </div>
             ) : (
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 ring-2 ring-border">
                 <span className="text-lg font-bold text-primary">
@@ -302,7 +307,7 @@ export default function PlayersPage() {
             <Card className="border-0 bg-card">
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Search className="mb-4 h-12 w-12 text-muted-foreground" />
-                <p className="text-muted-foreground">Aucun joueur trouvé pour "{searchQuery}"</p>
+              <p className="text-muted-foreground">Aucun joueur trouvé pour &quot;{searchQuery}&quot;</p>
               </CardContent>
             </Card>
           ) : (
@@ -486,13 +491,17 @@ export default function PlayersPage() {
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary relative overflow-hidden">
                             {team.logo_url ? (
-                              <img
-                                src={team.logo_url}
-                                alt={team.name}
-                                className="h-10 w-10 rounded-lg object-cover"
-                              />
+                              <div className="relative h-10 w-10">
+                                <Image
+                                  src={team.logo_url}
+                                  alt={team.name}
+                                  fill
+                                  className="object-cover rounded-lg"
+                                  sizes="40px"
+                                />
+                              </div>
                             ) : (
                               <Users className="h-7 w-7" />
                             )}

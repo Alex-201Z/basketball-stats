@@ -83,6 +83,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <button
             onClick={onClose}
             className="lg:hidden p-2 rounded-lg hover:bg-sidebar-accent"
+            aria-label="Fermer le menu"
           >
             <X className="h-5 w-5 text-muted-foreground" />
           </button>
@@ -161,6 +162,7 @@ export function MobileMenuButton({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       className="lg:hidden p-2 rounded-lg hover:bg-secondary"
+      aria-label="Ouvrir le menu"
     >
       <Menu className="h-6 w-6 text-foreground" />
     </button>

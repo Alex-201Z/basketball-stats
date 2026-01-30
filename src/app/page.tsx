@@ -8,7 +8,7 @@ import { Sidebar, MobileMenuButton } from '@/components/Sidebar';
 import { DashboardStats } from '@/components/DashboardStats';
 import { RecentMatches } from '@/components/RecentMatches';
 import { TopPlayersCard } from '@/components/TopPlayersCard';
-import { RankingTable } from '@/components/RankingTable';
+import { RankingTable, RankingTableSkeleton } from '@/components/RankingTable';
 import { StatsChart } from '@/components/StatsChart';
 import { useRankings } from '@/hooks/useRankings';
 import { useMatches } from '@/hooks/useMatches';
@@ -209,11 +209,8 @@ export default function Dashboard() {
 
                     {/* Table */}
                     {loading ? (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="flex items-center gap-3">
-                          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-                          <span className="text-muted-foreground">Chargement...</span>
-                        </div>
+                      <div className="rounded-xl border border-border overflow-hidden">
+                        <RankingTableSkeleton />
                       </div>
                     ) : error ? (
                       <div className="rounded-xl bg-destructive/10 p-6 text-center text-destructive">

@@ -18,6 +18,33 @@ interface RankingTableProps {
   showRank?: boolean;
 }
 
+import { Skeleton } from '@/components/ui/skeleton';
+
+export function RankingTableSkeleton({ showRank = true }: { showRank?: boolean }) {
+  return (
+    <div className="w-full">
+      <div className="border-b border-border p-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-[100px]" />
+          <Skeleton className="h-4 w-[60px]" />
+        </div>
+      </div>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex items-center justify-between border-b border-border p-4">
+          <div className="flex items-center gap-4">
+            {showRank && <Skeleton className="h-6 w-6 rounded-full" />}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-[150px]" />
+              <Skeleton className="h-3 w-[100px]" />
+            </div>
+          </div>
+          <Skeleton className="h-6 w-[40px]" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function RankingTable({ rankings, category, showRank = true }: RankingTableProps) {
   const getStatValue = (player: PlayerRanking) => {
     switch (category) {

@@ -5,14 +5,28 @@ import type { NBAApiGame, NBAApiStats } from '@/types';
 const NBA_API_BASE = 'https://api.balldontlie.io/v1';
 
 // Headers pour l'API
-const getHeaders = () => ({
-  'Authorization': process.env.NBA_API_KEY || '',
-});
+const getHeaders = () => {
+  const apiKey = process.env.NBA_API_KEY;
+  if (!apiKey) {
+    throw new Error('Clé API NBA (NBA_API_KEY) manquante');
+  }
+  return {
+    'Authorization': apiKey,
+  };
+};
 
 // Synchroniser les matchs NBA récents
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const action = searchParams.get('action') || 'games';
+
+  // Vérifier la clé API avant tout
+  if (!process.env.NBA_API_KEY) {
+    return NextResponse.json(
+      { success: false, error: 'Configuration NBA manquante (Clé API)' },
+      { status: 503 } // Service Unavailable
+    );
+  }
 
   try {
     switch (action) {

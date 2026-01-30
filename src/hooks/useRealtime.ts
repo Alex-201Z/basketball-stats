@@ -24,6 +24,8 @@ export function useRealtime({
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
+    if (!supabase) return;
+
     // Créer un canal unique pour cette table
     const channel = supabase.channel(`realtime-${table}-${Date.now()}`);
 
@@ -71,7 +73,7 @@ export function useRealtime({
     };
   }, [table, onInsert, onUpdate, onDelete, onChange]);
 
-  return channelRef.current;
+  return null;
 }
 
 // Hook simplifié pour rafraîchir les données lors de changements

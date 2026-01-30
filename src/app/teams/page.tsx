@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -159,13 +160,17 @@ export default function TeamsPage() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary relative overflow-hidden">
                       {team.logo_url ? (
-                        <img
-                          src={team.logo_url}
-                          alt={team.name}
-                          className="h-10 w-10 rounded-lg object-cover"
-                        />
+                        <div className="relative h-10 w-10">
+                          <Image
+                            src={team.logo_url}
+                            alt={team.name}
+                            fill
+                            className="object-cover rounded-lg"
+                            sizes="40px"
+                          />
+                        </div>
                       ) : (
                         <Users className="h-7 w-7" />
                       )}

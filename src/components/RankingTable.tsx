@@ -9,12 +9,40 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Trophy, Medal, Award } from 'lucide-react';
 import type { PlayerRanking, RankingCategory } from '@/types';
 
 interface RankingTableProps {
   rankings: PlayerRanking[];
   category: RankingCategory;
   showRank?: boolean;
+}
+
+import { Skeleton } from '@/components/ui/skeleton';
+
+export function RankingTableSkeleton({ showRank = true }: { showRank?: boolean }) {
+  return (
+    <div className="w-full">
+      <div className="border-b border-border p-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-[100px]" />
+          <Skeleton className="h-4 w-[60px]" />
+        </div>
+      </div>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex items-center justify-between border-b border-border p-4">
+          <div className="flex items-center gap-4">
+            {showRank && <Skeleton className="h-6 w-6 rounded-full" />}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-[150px]" />
+              <Skeleton className="h-3 w-[100px]" />
+            </div>
+          </div>
+          <Skeleton className="h-6 w-[40px]" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function RankingTable({ rankings, category, showRank = true }: RankingTableProps) {
@@ -56,6 +84,31 @@ export function RankingTable({ rankings, category, showRank = true }: RankingTab
     }
   };
 
+  const getRankDisplay = (index: number) => {
+    switch (index) {
+      case 0:
+        return (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500/10" title="1er">
+            <Trophy className="h-3.5 w-3.5 text-yellow-500" aria-label="1ère place" />
+          </div>
+        );
+      case 1:
+        return (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-500/10" title="2ème">
+            <Medal className="h-3.5 w-3.5 text-slate-400" aria-label="2ème place" />
+          </div>
+        );
+      case 2:
+        return (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-500/10" title="3ème">
+            <Award className="h-3.5 w-3.5 text-orange-400" aria-label="3ème place" />
+          </div>
+        );
+      default:
+        return <span className="pl-1.5 font-bold text-primary">{index + 1}</span>;
+    }
+  };
+
   return (
     <Table>
       <TableHeader>
@@ -71,8 +124,8 @@ export function RankingTable({ rankings, category, showRank = true }: RankingTab
         {rankings.map((player, index) => (
           <TableRow key={player.id} className="border-border hover:bg-secondary/50">
             {showRank && (
-              <TableCell className="font-bold text-primary">
-                {index + 1}
+              <TableCell>
+                {getRankDisplay(index)}
               </TableCell>
             )}
             <TableCell>

@@ -47,10 +47,6 @@ export function PageLayout({ children, title, subtitle, actions }: PageLayoutPro
         <footer className="border-t border-border bg-card px-4 lg:px-6 py-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs lg:text-sm text-muted-foreground">
             <p>Basketball Stats Manager © 2026</p>
-            <p className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              Temps reel actif
-            </p>
           </div>
         </footer>
       </div>

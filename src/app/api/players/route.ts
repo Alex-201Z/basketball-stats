@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import prisma from '@/lib/prisma';
-import type { League, Position } from '../../../../generated/prisma';
+import type { League, Position } from '@/generated/prisma';
 
 const VALID_POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C'];
 
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
       team_id: player.teamId,
       photo_url: player.photoUrl,
       league: player.league,
+      age: player.age,
       nba_player_id: player.nbaPlayerId,
       created_at: player.createdAt.toISOString(),
       team: player.team ? {
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { first_name, last_name, jersey_number, position, team_id, photo_url } = body;
+    const { first_name, last_name, jersey_number, position, team_id, photo_url, age } = body;
 
     // Validations
     if (!first_name || typeof first_name !== 'string' || first_name.trim().length === 0) {
@@ -77,31 +79,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!team_id) {
-      return NextResponse.json(
-        { success: false, error: 'L\'équipe est requise' },
-        { status: 400 }
-      );
-    }
+    // Validation Équipe (Si fournie)
+    if (team_id) {
+      // Vérifier que l'équipe existe et est locale
+      const team = await prisma.team.findUnique({
+        where: { id: team_id },
+        select: { league: true },
+      });
 
-    // Vérifier que l'équipe existe et est locale
-    const team = await prisma.team.findUnique({
-      where: { id: team_id },
-      select: { league: true },
-    });
+      if (!team) {
+        return NextResponse.json(
+          { success: false, error: 'Équipe non trouvée' },
+          { status: 404 }
+        );
+      }
 
-    if (!team) {
-      return NextResponse.json(
-        { success: false, error: 'Équipe non trouvée' },
-        { status: 404 }
-      );
-    }
-
-    if (team.league === 'nba') {
-      return NextResponse.json(
-        { success: false, error: 'Impossible d\'ajouter un joueur à une équipe NBA' },
-        { status: 403 }
-      );
+      if (team.league === 'nba') {
+        return NextResponse.json(
+          { success: false, error: 'Impossible d\'ajouter un joueur à une équipe NBA' },
+          { status: 403 }
+        );
+      }
     }
 
     // Valider la position si fournie
@@ -113,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Valider le numéro de maillot
-    if (jersey_number !== undefined && jersey_number !== null) {
+    if (jersey_number !== undefined && jersey_number !== null && jersey_number !== '') {
       const num = parseInt(jersey_number, 10);
       if (isNaN(num) || num < 0 || num > 99) {
         return NextResponse.json(
@@ -131,11 +129,12 @@ export async function POST(request: NextRequest) {
         id,
         firstName: first_name.trim(),
         lastName: last_name.trim(),
-        jerseyNumber: jersey_number !== undefined ? parseInt(jersey_number, 10) : null,
+        jerseyNumber: (jersey_number !== undefined && jersey_number !== '') ? parseInt(jersey_number, 10) : null,
         position: position || null,
-        teamId: team_id,
+        teamId: team_id || null,
         photoUrl: photo_url || null,
         league: 'local',
+        age: age ? parseInt(age, 10) : null,
       },
       include: {
         team: {
@@ -153,6 +152,7 @@ export async function POST(request: NextRequest) {
         jersey_number: player.jerseyNumber,
         position: player.position,
         team_id: player.teamId,
+        age: player.age,
         photo_url: player.photoUrl,
         league: player.league,
         created_at: player.createdAt.toISOString(),

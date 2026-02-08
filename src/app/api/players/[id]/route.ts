@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import prisma from '@/lib/prisma';
-import type { Position } from '../../../../../generated/prisma';
+import type { Position } from '@/generated/prisma';
 
 const VALID_POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C'];
 
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         team_id: player.teamId,
         photo_url: player.photoUrl,
         league: player.league,
+        age: player.age,
         created_at: player.createdAt.toISOString(),
         team: player.team ? {
           id: player.team.id,
@@ -89,6 +91,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       position?: Position | null;
       teamId?: string;
       photoUrl?: string | null;
+      age?: number | null;
     } = {};
 
     if (body.first_name !== undefined) {
@@ -123,6 +126,18 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           );
         }
         updates.jerseyNumber = num;
+      }
+    }
+
+    if (body.age !== undefined) {
+      if (body.age === null || body.age === '') {
+        updates.age = null;
+      } else {
+        const num = parseInt(body.age, 10);
+        if (isNaN(num) || num < 0 || num > 120) {
+          return NextResponse.json({ success: false, error: "Âge invalide" }, { status: 400 });
+        }
+        updates.age = num;
       }
     }
 
@@ -194,6 +209,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         team_id: player.teamId,
         photo_url: player.photoUrl,
         league: player.league,
+        age: player.age,
         created_at: player.createdAt.toISOString(),
         team: player.team ? {
           id: player.team.id,

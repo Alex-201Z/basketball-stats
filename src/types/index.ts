@@ -28,8 +28,9 @@ export interface Player {
   last_name: string;
   jersey_number?: number;
   position?: PlayerPosition;
-  team_id: string;
+  team_id: string | null;
   photo_url?: string;
+  age?: number;
   league: LeagueType;
   nba_player_id?: number; // ID de l'API NBA si applicable
   created_at: string;
@@ -37,7 +38,7 @@ export interface Player {
 
 // Interface Joueur avec équipe (pour affichage)
 export interface PlayerWithTeam extends Player {
-  team: Team;
+  team: Team | null;
 }
 
 // Interface Match
@@ -51,6 +52,7 @@ export interface Match {
   away_score: number;
   league: LeagueType;
   nba_game_id?: number; // ID de l'API NBA si applicable
+  sheet_url?: string;
   created_at: string;
 }
 
@@ -66,11 +68,14 @@ export interface PlayerStats {
   player_id: string;
   match_id: string;
   points: number;
-  rebounds: number;
+  offensive_rebounds: number;
+  defensive_rebounds: number;
+  total_rebounds?: number; // Calculé
   assists: number;
   steals: number;
   blocks: number;
   turnovers: number;
+  personal_fouls: number;
   minutes_played: number;
   field_goals_made: number;
   field_goals_attempted: number;
@@ -78,7 +83,10 @@ export interface PlayerStats {
   three_pointers_attempted: number;
   free_throws_made: number;
   free_throws_attempted: number;
+  rating?: number; // Note globale
+  status?: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   updated_at: string;
+  rebounds?: number; // Deprecated but kept for compatibility during migration
 }
 
 // Interface pour le classement d'un joueur
@@ -195,4 +203,9 @@ export interface WeeklyReport {
   top_stealers: PlayerRanking[];
   top_blockers: PlayerRanking[];
   matches_summary: MatchWithTeams[];
+}
+
+// Interface Joueur avec Stats (pour le Live Scoring)
+export interface PlayerWithStats extends PlayerWithTeam {
+  stats?: PlayerStats;
 }

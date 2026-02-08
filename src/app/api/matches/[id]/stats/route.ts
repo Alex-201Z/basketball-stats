@@ -21,38 +21,69 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             jerseyNumber: true,
             position: true,
             teamId: true,
+            age: true,
           },
         },
       },
     });
 
-    const data = stats.map(stat => ({
-      id: stat.id,
-      player_id: stat.playerId,
-      match_id: stat.matchId,
-      points: stat.points,
-      rebounds: stat.rebounds,
-      assists: stat.assists,
-      steals: stat.steals,
-      blocks: stat.blocks,
-      turnovers: stat.turnovers,
-      minutes_played: Number(stat.minutesPlayed),
-      field_goals_made: stat.fieldGoalsMade,
-      field_goals_attempted: stat.fieldGoalsAttempted,
-      three_pointers_made: stat.threePointersMade,
-      three_pointers_attempted: stat.threePointersAttempted,
-      free_throws_made: stat.freeThrowsMade,
-      free_throws_attempted: stat.freeThrowsAttempted,
-      updated_at: stat.updatedAt.toISOString(),
-      player: stat.player ? {
-        id: stat.player.id,
-        first_name: stat.player.firstName,
-        last_name: stat.player.lastName,
-        jersey_number: stat.player.jerseyNumber,
-        position: stat.player.position,
-        team_id: stat.player.teamId,
-      } : null,
-    }));
+    const data = stats.map(stat => {
+      // Calcul de la note globale (efficacité)
+      // Positive: Points + Rebonds + Passes + Interceptions + Contres
+      // Negative: Tirs ratés + Balles perdues + Fautes
+
+      const missedFG = stat.fieldGoalsAttempted - stat.fieldGoalsMade;
+      const missed3PT = stat.threePointersAttempted - stat.threePointersMade;
+      const missedFT = stat.freeThrowsAttempted - stat.freeThrowsMade;
+      const missedShots = missedFG + missed3PT + missedFT;
+
+      const totalRebounds = stat.offensiveRebounds + stat.defensiveRebounds;
+
+      const rating = (
+        stat.points +
+        totalRebounds +
+        stat.assists +
+        stat.steals +
+        stat.blocks
+      ) - (
+          missedShots +
+          stat.turnovers +
+          stat.personalFouls
+        );
+
+      return {
+        id: stat.id,
+        player_id: stat.playerId,
+        match_id: stat.matchId,
+        points: stat.points,
+        offensive_rebounds: stat.offensiveRebounds,
+        defensive_rebounds: stat.defensiveRebounds,
+        total_rebounds: totalRebounds,
+        assists: stat.assists,
+        steals: stat.steals,
+        blocks: stat.blocks,
+        turnovers: stat.turnovers,
+        personal_fouls: stat.personalFouls,
+        minutes_played: Number(stat.minutesPlayed),
+        field_goals_made: stat.fieldGoalsMade,
+        field_goals_attempted: stat.fieldGoalsAttempted,
+        three_pointers_made: stat.threePointersMade,
+        three_pointers_attempted: stat.threePointersAttempted,
+        free_throws_made: stat.freeThrowsMade,
+        free_throws_attempted: stat.freeThrowsAttempted,
+        rating: rating,
+        updated_at: stat.updatedAt.toISOString(),
+        player: stat.player ? {
+          id: stat.player.id,
+          first_name: stat.player.firstName,
+          last_name: stat.player.lastName,
+          jersey_number: stat.player.jerseyNumber,
+          position: stat.player.position,
+          team_id: stat.player.teamId,
+          age: stat.player.age,
+        } : null,
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -124,7 +155,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Préparer les données de stats
     const validStats = [
-      'points', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers',
+      'points', 'offensive_rebounds', 'defensive_rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'personal_fouls',
       'minutes_played', 'field_goals_made', 'field_goals_attempted',
       'three_pointers_made', 'three_pointers_attempted',
       'free_throws_made', 'free_throws_attempted'
@@ -133,7 +164,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const statsToSave: Record<string, number> = {};
     for (const stat of validStats) {
       if (statsData[stat] !== undefined) {
-        const value = parseInt(statsData[stat], 10);
+        const value = Number(statsData[stat]); // Utiliser Number() pour gérer les décimaux si besoin
         if (isNaN(value) || value < 0) {
           return NextResponse.json(
             { success: false, error: `Valeur invalide pour ${stat}` },
@@ -148,13 +179,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const statId = `local-stat-${matchId}-${player_id}`;
 
     // Mapper les noms de colonnes
-    const prismaData: Record<string, number> = {};
+    const prismaData: any = {}; // Utilisation de 'any' pour éviter les erreurs de typage avec Prisma généré
     if (statsToSave.points !== undefined) prismaData.points = statsToSave.points;
-    if (statsToSave.rebounds !== undefined) prismaData.rebounds = statsToSave.rebounds;
+    if (statsToSave.offensive_rebounds !== undefined) prismaData.offensiveRebounds = statsToSave.offensive_rebounds;
+    if (statsToSave.defensive_rebounds !== undefined) prismaData.defensiveRebounds = statsToSave.defensive_rebounds;
     if (statsToSave.assists !== undefined) prismaData.assists = statsToSave.assists;
     if (statsToSave.steals !== undefined) prismaData.steals = statsToSave.steals;
     if (statsToSave.blocks !== undefined) prismaData.blocks = statsToSave.blocks;
     if (statsToSave.turnovers !== undefined) prismaData.turnovers = statsToSave.turnovers;
+    if (statsToSave.personal_fouls !== undefined) prismaData.personalFouls = statsToSave.personal_fouls;
     if (statsToSave.minutes_played !== undefined) prismaData.minutesPlayed = statsToSave.minutes_played;
     if (statsToSave.field_goals_made !== undefined) prismaData.fieldGoalsMade = statsToSave.field_goals_made;
     if (statsToSave.field_goals_attempted !== undefined) prismaData.fieldGoalsAttempted = statsToSave.field_goals_attempted;
@@ -186,10 +219,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             jerseyNumber: true,
             position: true,
             teamId: true,
+            age: true,
           },
         },
       },
     });
+
+    // Recalcul de la note pour la réponse
+    const missedFG = stat.fieldGoalsAttempted - stat.fieldGoalsMade;
+    const missed3PT = stat.threePointersAttempted - stat.threePointersMade;
+    const missedFT = stat.freeThrowsAttempted - stat.freeThrowsMade;
+    const missedShots = missedFG + missed3PT + missedFT;
+    const totalRebounds = stat.offensiveRebounds + stat.defensiveRebounds;
+
+    const rating = (
+      stat.points +
+      totalRebounds +
+      stat.assists +
+      stat.steals +
+      stat.blocks
+    ) - (
+        missedShots +
+        stat.turnovers +
+        stat.personalFouls
+      );
 
     return NextResponse.json({
       success: true,
@@ -198,13 +251,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         player_id: stat.playerId,
         match_id: stat.matchId,
         points: stat.points,
-        rebounds: stat.rebounds,
+        offensive_rebounds: stat.offensiveRebounds,
+        defensive_rebounds: stat.defensiveRebounds,
+        total_rebounds: totalRebounds,
         assists: stat.assists,
         steals: stat.steals,
         blocks: stat.blocks,
         turnovers: stat.turnovers,
+        personal_fouls: stat.personalFouls,
         minutes_played: Number(stat.minutesPlayed),
         updated_at: stat.updatedAt.toISOString(),
+        rating: rating,
         player: stat.player ? {
           id: stat.player.id,
           first_name: stat.player.firstName,
@@ -212,6 +269,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           jersey_number: stat.player.jerseyNumber,
           position: stat.player.position,
           team_id: stat.player.teamId,
+          age: stat.player.age,
         } : null,
       },
     });

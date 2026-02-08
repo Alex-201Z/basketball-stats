@@ -12,7 +12,6 @@ import { RankingTable } from '@/components/RankingTable';
 import { StatsChart } from '@/components/StatsChart';
 import { useRankings } from '@/hooks/useRankings';
 import { useMatches } from '@/hooks/useMatches';
-import { useRealtimeRefresh } from '@/hooks/useRealtime';
 import type { RankingCategory } from '@/types';
 import {
   Trophy,
@@ -82,7 +81,7 @@ export default function Dashboard() {
     fetchStats();
   }, [matches]);
 
-  useRealtimeRefresh('player_stats', refetch);
+
 
   const handleExportPDF = async () => {
     try {
@@ -238,10 +237,6 @@ export default function Dashboard() {
         <footer className="border-t border-border bg-card px-6 py-4">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <p>Basketball Stats Manager © 2026</p>
-            <p className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              Temps réel actif
-            </p>
           </div>
         </footer>
       </div>

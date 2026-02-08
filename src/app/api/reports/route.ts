@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
         where: league ? { player: { league } } : {},
         _avg: {
           points: true,
-          rebounds: true,
+          offensiveRebounds: true,
+          defensiveRebounds: true,
           assists: true,
           steals: true,
           blocks: true,
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
       const categoryData = statsAggregation
         .map((stat) => {
           const player = playerMap.get(stat.playerId);
+          const avgRebounds = (Number(stat._avg.offensiveRebounds || 0) + Number(stat._avg.defensiveRebounds || 0));
           return {
             player_id: stat.playerId,
             first_name: player?.firstName || '',
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest) {
             team_name: player?.team?.name || null,
             games_played: stat._count.matchId,
             avg_points: Number((stat._avg.points || 0).toFixed(1)),
-            avg_rebounds: Number((stat._avg.rebounds || 0).toFixed(1)),
+            avg_rebounds: Number(avgRebounds.toFixed(1)),
             avg_assists: Number((stat._avg.assists || 0).toFixed(1)),
             avg_steals: Number((stat._avg.steals || 0).toFixed(1)),
             avg_blocks: Number((stat._avg.blocks || 0).toFixed(1)),

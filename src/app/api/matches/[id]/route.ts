@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import type { MatchStatus } from '../../../../../generated/prisma';
+import type { MatchStatus } from '@/generated/prisma';
 
 const VALID_STATUSES: MatchStatus[] = ['scheduled', 'in_progress', 'completed'];
 
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           player_id: stat.playerId,
           match_id: stat.matchId,
           points: stat.points,
-          rebounds: stat.rebounds,
+          rebounds: stat.offensiveRebounds + stat.defensiveRebounds,
           assists: stat.assists,
           steals: stat.steals,
           blocks: stat.blocks,
@@ -136,6 +136,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       homeScore?: number;
       awayScore?: number;
       matchDate?: Date;
+      sheetUrl?: string | null;
     } = {};
 
     // Mise à jour du statut
@@ -194,6 +195,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       updates.matchDate = new Date(body.match_date);
     }
 
+    // Mise à jour de la feuille de match
+    if (body.sheet_url !== undefined) {
+      updates.sheetUrl = body.sheet_url || null;
+    }
+
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
         { success: false, error: 'Aucune modification fournie' },
@@ -225,6 +231,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         home_score: match.homeScore,
         away_score: match.awayScore,
         league: match.league,
+        sheet_url: match.sheetUrl,
         created_at: match.createdAt.toISOString(),
         home_team: match.homeTeam ? {
           id: match.homeTeam.id,

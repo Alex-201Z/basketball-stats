@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       _avg: {
         points: true,
-        rebounds: true,
+        offensiveRebounds: true,
+        defensiveRebounds: true,
         assists: true,
         steals: true,
         blocks: true,
@@ -25,7 +26,8 @@ export async function GET(request: NextRequest) {
       },
       _sum: {
         points: true,
-        rebounds: true,
+        offensiveRebounds: true,
+        defensiveRebounds: true,
         assists: true,
         steals: true,
         blocks: true,
@@ -47,6 +49,9 @@ export async function GET(request: NextRequest) {
     // Construire les classements
     const rankings: PlayerRanking[] = statsAggregation.map((stat) => {
       const player = playerMap.get(stat.playerId);
+      const totalRebounds = (stat._sum.offensiveRebounds || 0) + (stat._sum.defensiveRebounds || 0);
+      const avgRebounds = (Number(stat._avg.offensiveRebounds || 0) + Number(stat._avg.defensiveRebounds || 0));
+
       return {
         id: stat.playerId,
         first_name: player?.firstName || '',
@@ -58,12 +63,12 @@ export async function GET(request: NextRequest) {
         league: (player?.league || 'local') as 'nba' | 'local' | 'all',
         games_played: stat._count.matchId,
         total_points: stat._sum.points || 0,
-        total_rebounds: stat._sum.rebounds || 0,
+        total_rebounds: totalRebounds,
         total_assists: stat._sum.assists || 0,
         total_steals: stat._sum.steals || 0,
         total_blocks: stat._sum.blocks || 0,
         avg_points: Number((stat._avg.points || 0).toFixed(1)),
-        avg_rebounds: Number((stat._avg.rebounds || 0).toFixed(1)),
+        avg_rebounds: Number(avgRebounds.toFixed(1)),
         avg_assists: Number((stat._avg.assists || 0).toFixed(1)),
         avg_steals: Number((stat._avg.steals || 0).toFixed(1)),
         avg_blocks: Number((stat._avg.blocks || 0).toFixed(1)),

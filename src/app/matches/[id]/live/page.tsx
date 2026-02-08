@@ -3,26 +3,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Play, Pause, Square, Flag } from 'lucide-react';
-import type { MatchWithTeams, PlayerStats, PlayerWithTeam } from '@/types';
-
-interface PlayerWithStats extends PlayerWithTeam {
-  stats?: PlayerStats;
-}
+import { ArrowLeft, Play, Flag } from 'lucide-react';
+import type { MatchWithTeams, PlayerStats, PlayerWithTeam, PlayerWithStats } from '@/types';
+import { ScoutAccessModal } from '@/components/matches/ScoutAccessModal';
+import { StatsEntryOverlay } from '@/components/matches/StatsEntryOverlay';
+import { PlayerStatRow } from '@/components/matches/PlayerStatRow';
+import { MatchSheetModal } from '@/components/matches/MatchSheetModal';
 
 interface MatchData extends MatchWithTeams {
   player_stats?: (PlayerStats & { player?: PlayerWithTeam })[];
+  has_access_code?: boolean;
 }
-
-const STAT_BUTTONS = [
-  { key: 'points', label: 'PTS', increments: [1, 2, 3] },
-  { key: 'rebounds', label: 'REB', increments: [1] },
-  { key: 'assists', label: 'AST', increments: [1] },
-  { key: 'steals', label: 'STL', increments: [1] },
-  { key: 'blocks', label: 'BLK', increments: [1] },
-];
 
 export default function LiveScoringPage() {
   const params = useParams();
@@ -34,6 +26,33 @@ export default function LiveScoringPage() {
   const [awayPlayers, setAwayPlayers] = useState<PlayerWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Sécurité Scout
+  const [isScoutAuthenticated, setIsScoutAuthenticated] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const handleAuthSubmit = async (code: string) => {
+    try {
+      const res = await fetch(`/api/matches/${matchId}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsScoutAuthenticated(true);
+        setShowAuthModal(false);
+        sessionStorage.setItem(`match_auth_${matchId}`, 'true');
+      } else {
+        alert('Code incorrect');
+      }
+    } catch (e) {
+      alert('Erreur de validation');
+    }
+  };
+
+  // State pour le joueur sélectionné (Mode Saisie Détaillée)
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   const fetchMatch = useCallback(async () => {
     try {
@@ -70,6 +89,18 @@ export default function LiveScoringPage() {
             stats: statsMap.get(p.id),
           }))
         );
+
+        // Check Access Code needed
+        if (result.data.has_access_code) {
+          const storedAuth = sessionStorage.getItem(`match_auth_${matchId}`);
+          if (storedAuth === 'true') {
+            setIsScoutAuthenticated(true);
+          } else {
+            setShowAuthModal(true);
+          }
+        } else {
+          setIsScoutAuthenticated(true); // Pas de code, accès libre (ou gestion différente selon rôle)
+        }
       } else {
         setError(result.error);
       }
@@ -85,76 +116,124 @@ export default function LiveScoringPage() {
     fetchMatch();
   }, [fetchMatch]);
 
-  const updateStat = async (playerId: string, stat: string, increment: number) => {
-    // Trouver le joueur et ses stats actuelles
-    const player = [...homePlayers, ...awayPlayers].find((p) => p.id === playerId);
+  const handleStatAction = async (playerId: string, actionType: string) => {
+    if (!match || match.status !== 'in_progress') return;
+
+    const player = [...homePlayers, ...awayPlayers].find(p => p.id === playerId);
     if (!player) return;
 
-    const currentValue = (player.stats?.[stat as keyof PlayerStats] as number) || 0;
-    const newValue = Math.max(0, currentValue + increment);
+    const stats = player.stats || {
+      points: 0, offensive_rebounds: 0, defensive_rebounds: 0, total_rebounds: 0,
+      assists: 0, steals: 0, blocks: 0, turnovers: 0, personal_fouls: 0,
+      minutes_played: 0, field_goals_made: 0, field_goals_attempted: 0,
+      three_pointers_made: 0, three_pointers_attempted: 0,
+      free_throws_made: 0, free_throws_attempted: 0, id: '', player_id: playerId, match_id: matchId, updated_at: ''
+    };
 
-    // Mise à jour optimiste de l'UI
-    const updatePlayers = (players: PlayerWithStats[]) =>
-      players.map((p) =>
-        p.id === playerId
-          ? {
-              ...p,
-              stats: {
-                ...p.stats,
-                [stat]: newValue,
-              } as PlayerStats,
-            }
-          : p
-      );
+    const updates: Partial<PlayerStats> = {};
 
-    setHomePlayers(updatePlayers);
-    setAwayPlayers(updatePlayers);
+    switch (actionType) {
+      case '2pm': // 2 Points Marqué
+        updates.points = (stats.points || 0) + 2;
+        updates.field_goals_made = (stats.field_goals_made || 0) + 1;
+        updates.field_goals_attempted = (stats.field_goals_attempted || 0) + 1;
+        break;
+      case '2miss': // 2 Points Raté
+        updates.field_goals_attempted = (stats.field_goals_attempted || 0) + 1;
+        break;
+      case '3pm': // 3 Points Marqué
+        updates.points = (stats.points || 0) + 3;
+        updates.three_pointers_made = (stats.three_pointers_made || 0) + 1;
+        updates.three_pointers_attempted = (stats.three_pointers_attempted || 0) + 1;
+        break;
+      case '3miss': // 3 Points Raté
+        updates.three_pointers_attempted = (stats.three_pointers_attempted || 0) + 1;
+        break;
+      case 'ftm': // Lancer Franc Marqué
+        updates.points = (stats.points || 0) + 1;
+        updates.free_throws_made = (stats.free_throws_made || 0) + 1;
+        updates.free_throws_attempted = (stats.free_throws_attempted || 0) + 1;
+        break;
+      case 'ftmiss': // Lancer Franc Raté
+        updates.free_throws_attempted = (stats.free_throws_attempted || 0) + 1;
+        break;
+      case 'oreb':
+        updates.offensive_rebounds = (stats.offensive_rebounds || 0) + 1;
+        break;
+      case 'dreb':
+        updates.defensive_rebounds = (stats.defensive_rebounds || 0) + 1;
+        break;
+      case 'ast':
+        updates.assists = (stats.assists || 0) + 1;
+        break;
+      case 'stl':
+        updates.steals = (stats.steals || 0) + 1;
+        break;
+      case 'blk':
+        updates.blocks = (stats.blocks || 0) + 1;
+        break;
+      case 'to':
+        updates.turnovers = (stats.turnovers || 0) + 1;
+        break;
+      case 'pf':
+        updates.personal_fouls = (stats.personal_fouls || 0) + 1;
+        break;
+      case 'min+':
+        updates.minutes_played = (Number(stats.minutes_played) || 0) + 1;
+        break;
+      case 'validate':
+        updates.status = 'ACCEPTED';
+        break;
+    }
 
-    // Envoyer au serveur
+    // Optimistic Update
+    const updateList = (list: PlayerWithStats[]) => list.map(p => {
+      if (p.id === playerId) {
+        return { ...p, stats: { ...p.stats, ...updates } as PlayerStats };
+      }
+      return p;
+    });
+    setHomePlayers(updateList);
+    setAwayPlayers(updateList);
+
+    // Send to API
     try {
-      await fetch(`/api/matches/${matchId}/stats`, {
+      const response = await fetch(`/api/matches/${matchId}/stats`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          player_id: playerId,
-          [stat]: newValue,
-        }),
+        body: JSON.stringify({ player_id: playerId, ...updates }),
       });
+      const result = await response.json();
 
-      // Recalculer les scores si c'est des points
-      if (stat === 'points') {
-        const homeTotal = homePlayers.reduce(
-          (sum, p) =>
-            sum + ((p.id === playerId ? newValue : p.stats?.points) || 0),
-          0
-        );
-        const awayTotal = awayPlayers.reduce(
-          (sum, p) =>
-            sum + ((p.id === playerId ? newValue : p.stats?.points) || 0),
-          0
-        );
-
-        await fetch(`/api/matches/${matchId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            home_score: homeTotal,
-            away_score: awayTotal,
-          }),
+      if (result.success && result.data) {
+        const updateWithServerData = (list: PlayerWithStats[]) => list.map(p => {
+          if (p.id === playerId) {
+            return { ...p, stats: result.data };
+          }
+          return p;
         });
+        setHomePlayers(updateWithServerData);
+        setAwayPlayers(updateWithServerData);
 
-        setMatch((prev) =>
-          prev
-            ? {
-                ...prev,
-                home_score: homeTotal,
-                away_score: awayTotal,
-              }
-            : null
-        );
+        // Update Match Score if points changed
+        if (updates.points !== undefined) {
+          const newHomePlayers = updateWithServerData(homePlayers);
+          const newAwayPlayers = updateWithServerData(awayPlayers);
+
+          const homeScore = newHomePlayers.reduce((acc, p) => acc + (p.stats?.points || 0), 0);
+          const awayScore = newAwayPlayers.reduce((acc, p) => acc + (p.stats?.points || 0), 0);
+
+          setMatch(prev => prev ? { ...prev, home_score: homeScore, away_score: awayScore } : null);
+
+          await fetch(`/api/matches/${matchId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ home_score: homeScore, away_score: awayScore }),
+          });
+        }
       }
     } catch (err) {
-      console.error('Erreur mise à jour stat:', err);
+      console.error("Error updating stat", err);
     }
   };
 
@@ -192,6 +271,10 @@ export default function LiveScoringPage() {
     }
   };
 
+  const selectedPlayer = selectedPlayerId
+    ? [...homePlayers, ...awayPlayers].find(p => p.id === selectedPlayerId)
+    : null;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -213,174 +296,128 @@ export default function LiveScoringPage() {
     );
   }
 
-  const renderPlayerCard = (player: PlayerWithStats, isHome: boolean) => (
-    <Card key={player.id} className={`${isHome ? 'border-l-4 border-l-blue-500' : 'border-r-4 border-r-red-500'}`}>
-      <CardContent className="pt-4 pb-2">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-muted-foreground">
-              #{player.jersey_number ?? '?'}
-            </span>
-            <span className="font-semibold">
-              {player.first_name[0]}. {player.last_name}
-            </span>
-            {player.position && (
-              <span className="text-xs text-muted-foreground">
-                ({player.position})
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {STAT_BUTTONS.map(({ key, label, increments }) => (
-            <div key={key} className="flex items-center gap-2">
-              <span className="w-10 text-xs font-medium text-muted-foreground">
-                {label}
-              </span>
-              <span className="w-8 text-center font-bold">
-                {(player.stats?.[key as keyof PlayerStats] as number) || 0}
-              </span>
-              <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-red-500"
-                  onClick={() => updateStat(player.id, key, -1)}
-                  disabled={match.status !== 'in_progress'}
-                >
-                  -
-                </Button>
-                {increments.map((inc) => (
-                  <Button
-                    key={inc}
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-7 p-0 text-green-600"
-                    onClick={() => updateStat(player.id, key, inc)}
-                    disabled={match.status !== 'in_progress'}
-                  >
-                    +{inc}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+
+      {/* Modal Auth */}
+      <ScoutAccessModal isOpen={showAuthModal} onSubmit={handleAuthSubmit} />
+
+      {/* Overlay de Saisie (S'affiche si un joueur est sélectionné) */}
+      <StatsEntryOverlay
+        selectedPlayer={selectedPlayer || null}
+        match={match}
+        onClose={() => setSelectedPlayerId(null)}
+        onStatAction={handleStatAction}
+      />
+
       {/* Header avec score */}
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
+      <header className="border-b bg-card sticky top-0 z-20 shadow-sm">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
             <Link href="/matches" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div className="flex gap-2">
+              <MatchSheetModal
+                matchId={matchId}
+                initialSheetUrl={match.sheet_url}
+                onSheetUpdate={(url) => setMatch(prev => prev ? { ...prev, sheet_url: url || undefined } : null)}
+              />
               {match.status === 'scheduled' && (
-                <Button onClick={startMatch} className="bg-green-600 hover:bg-green-700">
+                <Button onClick={startMatch} size="sm" className="bg-green-600 hover:bg-green-700">
                   <Play className="h-4 w-4 mr-2" />
-                  Démarrer le match
+                  Démarrer
                 </Button>
               )}
               {match.status === 'in_progress' && (
-                <Button onClick={endMatch} variant="destructive">
+                <Button onClick={endMatch} size="sm" variant="destructive">
                   <Flag className="h-4 w-4 mr-2" />
-                  Terminer le match
+                  Terminer
                 </Button>
               )}
             </div>
           </div>
 
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-8">
-              <div className="text-right">
-                <p className="font-bold text-lg">{match.home_team?.name}</p>
-                <p className="text-sm text-muted-foreground">Domicile</p>
-              </div>
-              <div className="text-center">
-                <p className="text-4xl font-bold text-orange-500">
-                  {match.home_score} - {match.away_score}
-                </p>
-                <span
-                  className={`text-xs px-2 py-1 rounded ${
-                    match.status === 'in_progress'
-                      ? 'bg-green-100 text-green-800'
-                      : match.status === 'completed'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'bg-blue-100 text-blue-800'
-                  }`}
-                >
-                  {match.status === 'in_progress'
-                    ? 'EN COURS'
-                    : match.status === 'completed'
-                    ? 'TERMINÉ'
-                    : 'PROGRAMMÉ'}
-                </span>
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-lg">{match.away_team?.name}</p>
-                <p className="text-sm text-muted-foreground">Extérieur</p>
-              </div>
+          <div className="flex items-center justify-center gap-4 md:gap-12">
+            <div className="text-right flex-1">
+              <span className="font-bold text-lg block leading-tight">{match.home_team?.name}</span>
+              <span className="text-xs text-muted-foreground">Domicile</span>
+            </div>
+            <div className="text-center px-4 py-1 bg-secondary/50 rounded-xl">
+              <span className="text-3xl font-black text-primary font-mono tracking-tighter">
+                {match.home_score} - {match.away_score}
+              </span>
+            </div>
+            <div className="text-left flex-1">
+              <span className="font-bold text-lg block leading-tight">{match.away_team?.name}</span>
+              <span className="text-xs text-muted-foreground">Extérieur</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* Zone de saisie */}
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto max-w-5xl py-6 space-y-8">
         {match.status === 'scheduled' && (
-          <div className="text-center py-12 bg-yellow-50 border border-yellow-200 rounded-lg mb-6">
-            <p className="text-yellow-800">
-              Cliquez sur &quot;Démarrer le match&quot; pour commencer la saisie des statistiques.
+          <div className="text-center py-12 bg-yellow-50/50 border border-yellow-200 rounded-xl mx-4">
+            <p className="text-yellow-800 font-medium">
+              Le match n'a pas encore commencé.
             </p>
           </div>
         )}
 
         {match.status === 'completed' && (
-          <div className="text-center py-6 mb-6">
-            <p className="text-muted-foreground mb-2">Match terminé</p>
+          <div className="flex flex-col items-center justify-center py-8 gap-4">
+            <div className="text-xl font-bold text-muted-foreground">Match Terminé</div>
             <Link href={`/matches/${matchId}`}>
-              <Button variant="outline">Voir le récapitulatif</Button>
+              <Button>Voir les résultats finaux</Button>
             </Link>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-8">
           {/* Équipe domicile */}
-          <div>
-            <h2 className="text-lg font-bold mb-4 text-blue-600">
-              {match.home_team?.name}
-            </h2>
-            {homePlayers.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                Aucun joueur dans cette équipe
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {homePlayers.map((player) => renderPlayerCard(player, true))}
-              </div>
-            )}
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <div className="bg-blue-600/5 px-6 py-3 border-b border-blue-100 flex justify-between items-center">
+              <h2 className="font-bold text-blue-700">{match.home_team?.name}</h2>
+              <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">HOME</span>
+            </div>
+            <div className="p-2">
+              {homePlayers.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8 text-sm italic">Aucun joueur dans cette équipe</p>
+              ) : (
+                homePlayers.map((player) => (
+                  <PlayerStatRow
+                    key={player.id}
+                    player={player}
+                    isHome={true}
+                    onStatAction={handleStatAction}
+                  />
+                ))
+              )}
+            </div>
           </div>
 
           {/* Équipe extérieure */}
-          <div>
-            <h2 className="text-lg font-bold mb-4 text-red-600">
-              {match.away_team?.name}
-            </h2>
-            {awayPlayers.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                Aucun joueur dans cette équipe
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {awayPlayers.map((player) => renderPlayerCard(player, false))}
-              </div>
-            )}
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <div className="bg-red-600/5 px-6 py-3 border-b border-red-100 flex justify-between items-center">
+              <h2 className="font-bold text-red-700">{match.away_team?.name}</h2>
+              <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">AWAY</span>
+            </div>
+            <div className="p-2">
+              {awayPlayers.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8 text-sm italic">Aucun joueur dans cette équipe</p>
+              ) : (
+                awayPlayers.map((player) => (
+                  <PlayerStatRow
+                    key={player.id}
+                    player={player}
+                    isHome={false}
+                    onStatAction={handleStatAction}
+                  />
+                ))
+              )}
+            </div>
           </div>
         </div>
       </main>

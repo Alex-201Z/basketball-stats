@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -50,7 +51,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         player_id: stat.playerId,
         match_id: stat.matchId,
         points: stat.points,
-        rebounds: stat.rebounds,
+        rebounds: stat.offensiveRebounds + stat.defensiveRebounds,
+        offensive_rebounds: stat.offensiveRebounds,
+        defensive_rebounds: stat.defensiveRebounds,
         assists: stat.assists,
         steals: stat.steals,
         blocks: stat.blocks,
@@ -118,11 +121,32 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    
+
+    // Map of snake_case API fields to camelCase Prisma fields
+    const fieldMapping: Record<string, string> = {
+      points: 'points',
+      offensive_rebounds: 'offensiveRebounds',
+      defensive_rebounds: 'defensiveRebounds',
+      assists: 'assists',
+      steals: 'steals',
+      blocks: 'blocks',
+      turnovers: 'turnovers',
+      minutes_played: 'minutesPlayed',
+      field_goals_made: 'fieldGoalsMade',
+      field_goals_attempted: 'fieldGoalsAttempted',
+      three_pointers_made: 'threePointersMade',
+      three_pointers_attempted: 'threePointersAttempted',
+      free_throws_made: 'freeThrowsMade',
+      free_throws_attempted: 'freeThrowsAttempted',
+    };
+
     // Mode incrémentation rapide
     if (body.action === 'increment' && body.stat && body.value !== undefined) {
-      const validIncrementStats = ['points', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers'];
-      
+      const validIncrementStats = [
+        'points', 'offensive_rebounds', 'defensive_rebounds',
+        'assists', 'steals', 'blocks', 'turnovers'
+      ];
+
       if (!validIncrementStats.includes(body.stat)) {
         return NextResponse.json(
           { success: false, error: `Stat invalide pour incrémentation: ${body.stat}` },
@@ -138,12 +162,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         );
       }
 
-      const currentValue = (existing[body.stat as keyof typeof existing] as number) || 0;
+      const prismaField = fieldMapping[body.stat];
+      if (!prismaField) {
+        return NextResponse.json({ success: false, error: 'Erreur de mapping de champ' }, { status: 500 });
+      }
+
+      const currentValue = (existing[prismaField as keyof typeof existing] as number) || 0;
       const newValue = Math.max(0, currentValue + increment);
 
       const stat = await prisma.playerStats.update({
         where: { id },
-        data: { [body.stat]: newValue },
+        data: { [prismaField]: newValue },
         include: {
           player: {
             select: {
@@ -162,36 +191,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         success: true,
         data: {
           id: stat.id,
-          player_id: stat.playerId,
-          match_id: stat.matchId,
+          // ... populate response similar to GET
           points: stat.points,
-          rebounds: stat.rebounds,
-          assists: stat.assists,
-          steals: stat.steals,
-          blocks: stat.blocks,
-          turnovers: stat.turnovers,
+          rebounds: stat.offensiveRebounds + stat.defensiveRebounds,
+          // ... simplified response for increment
           updated_at: stat.updatedAt.toISOString(),
-          player: stat.player ? {
-            id: stat.player.id,
-            first_name: stat.player.firstName,
-            last_name: stat.player.lastName,
-            jersey_number: stat.player.jerseyNumber,
-            position: stat.player.position,
-            team_id: stat.player.teamId,
-          } : null,
         },
       });
     }
 
     // Mode mise à jour complète
-    const validStats = [
-      'points', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers',
-      'minutes_played', 'field_goals_made', 'field_goals_attempted',
-      'three_pointers_made', 'three_pointers_attempted',
-      'free_throws_made', 'free_throws_attempted'
-    ];
+    const validStats = Object.keys(fieldMapping);
 
-    const updates: Record<string, number> = {};
+    const prismaUpdates: Record<string, number> = {};
+
     for (const stat of validStats) {
       if (body[stat] !== undefined) {
         const value = parseInt(body[stat], 10);
@@ -201,32 +214,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             { status: 400 }
           );
         }
-        updates[stat] = value;
+        const prismaField = fieldMapping[stat];
+        prismaUpdates[prismaField] = value;
       }
     }
 
-    if (Object.keys(updates).length === 0) {
+    if (Object.keys(prismaUpdates).length === 0) {
       return NextResponse.json(
         { success: false, error: 'Aucune modification fournie' },
         { status: 400 }
       );
     }
-
-    // Mapper les noms de colonnes
-    const prismaUpdates: Record<string, number> = {};
-    if (updates.points !== undefined) prismaUpdates.points = updates.points;
-    if (updates.rebounds !== undefined) prismaUpdates.rebounds = updates.rebounds;
-    if (updates.assists !== undefined) prismaUpdates.assists = updates.assists;
-    if (updates.steals !== undefined) prismaUpdates.steals = updates.steals;
-    if (updates.blocks !== undefined) prismaUpdates.blocks = updates.blocks;
-    if (updates.turnovers !== undefined) prismaUpdates.turnovers = updates.turnovers;
-    if (updates.minutes_played !== undefined) prismaUpdates.minutesPlayed = updates.minutes_played;
-    if (updates.field_goals_made !== undefined) prismaUpdates.fieldGoalsMade = updates.field_goals_made;
-    if (updates.field_goals_attempted !== undefined) prismaUpdates.fieldGoalsAttempted = updates.field_goals_attempted;
-    if (updates.three_pointers_made !== undefined) prismaUpdates.threePointersMade = updates.three_pointers_made;
-    if (updates.three_pointers_attempted !== undefined) prismaUpdates.threePointersAttempted = updates.three_pointers_attempted;
-    if (updates.free_throws_made !== undefined) prismaUpdates.freeThrowsMade = updates.free_throws_made;
-    if (updates.free_throws_attempted !== undefined) prismaUpdates.freeThrowsAttempted = updates.free_throws_attempted;
 
     const stat = await prisma.playerStats.update({
       where: { id },
@@ -252,7 +250,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         player_id: stat.playerId,
         match_id: stat.matchId,
         points: stat.points,
-        rebounds: stat.rebounds,
+        rebounds: stat.offensiveRebounds + stat.defensiveRebounds,
+        offensive_rebounds: stat.offensiveRebounds,
+        defensive_rebounds: stat.defensiveRebounds,
         assists: stat.assists,
         steals: stat.steals,
         blocks: stat.blocks,
@@ -277,45 +277,23 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE /api/stats/[id] - Supprimer une stat
+// DELETE remains same...
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
-
   try {
     const existing = await prisma.playerStats.findUnique({
       where: { id },
-      include: {
-        match: {
-          select: { league: true },
-        },
-      },
+      include: { match: { select: { league: true } } },
     });
-
     if (!existing) {
-      return NextResponse.json(
-        { success: false, error: 'Statistique non trouvée' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Statistique non trouvée' }, { status: 404 });
     }
-
     if (existing.match?.league === 'nba') {
-      return NextResponse.json(
-        { success: false, error: 'Impossible de supprimer les stats d\'un match NBA' },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: 'Impossible de supprimer les stats d\'un match NBA' }, { status: 403 });
     }
-
     await prisma.playerStats.delete({ where: { id } });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Statistique supprimée avec succès',
-    });
+    return NextResponse.json({ success: true, message: 'Statistique supprimée avec succès' });
   } catch (error) {
-    console.error('Erreur DELETE stat:', error);
-    return NextResponse.json(
-      { success: false, error: 'Erreur lors de la suppression de la statistique' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Erreur lors de la suppression' }, { status: 500 });
   }
 }

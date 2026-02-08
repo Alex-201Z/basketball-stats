@@ -24,6 +24,9 @@ export function useRealtime({
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
+    // Si Supabase n'est pas configuré, ne rien faire
+    if (!supabase) return;
+
     // Créer un canal unique pour cette table
     const channel = supabase.channel(`realtime-${table}-${Date.now()}`);
 

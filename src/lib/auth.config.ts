@@ -2,6 +2,7 @@ import type { NextAuthConfig } from 'next-auth';
 
 // Configuration de base sans Prisma (pour Edge Runtime/Middleware)
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   providers: [], // Les providers sont ajoutes dans auth.ts
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {

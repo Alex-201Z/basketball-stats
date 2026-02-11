@@ -20,7 +20,9 @@ services:
       start_period: 10s
 
   app:
-    image: akarisu/basketball-stats:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: always
     ports:
       - "3000:3000"
